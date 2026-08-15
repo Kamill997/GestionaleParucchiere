@@ -1,0 +1,66 @@
+@import 'tailwindcss';
+
+/*
+ * Design tokens — Gestionale Salone di Parrucchiere.
+ *
+ * Direzione: strumento operativo quotidiano (staff del salone), non sito
+ * di marketing. Palette calda e "boutique" ma leggibile a lungo su schermo;
+ * un solo accento deciso (prugna) invece di piu' colori competitivi.
+ * Fraunces per i titoli di sezione (con moderazione), IBM Plex Sans per
+ * tutta l'interfaccia/dati, IBM Plex Mono per valori tabulari (orari, prezzi).
+ */
+@theme {
+  --font-display: 'Fraunces', Georgia, serif;
+  --font-sans: 'IBM Plex Sans', system-ui, sans-serif;
+  --font-mono: 'IBM Plex Mono', ui-monospace, monospace;
+
+  --color-bg: #faf7f5;
+  --color-surface: #ffffff;
+  --color-surface-alt: #f4eee9;
+
+  --color-ink: #221d1f;
+  --color-ink-muted: #6e6265;
+  --color-ink-faint: #a79c9e;
+
+  --color-border: #e7dfda;
+  --color-border-strong: #d6cac4;
+
+  --color-primary: #5c2a4d;
+  --color-primary-hover: #4a2140;
+  --color-primary-soft: #f1e6ed;
+  --color-primary-foreground: #ffffff;
+
+  --color-success: #2f6b4f;
+  --color-success-soft: #e7f1ec;
+  --color-warning: #a8641e;
+  --color-warning-soft: #f7ead9;
+  --color-danger: #a13333;
+  --color-danger-soft: #f7e6e6;
+
+  --radius-md: 0.5rem;
+  --radius-lg: 0.75rem;
+}
+
+body {
+  margin: 0;
+  color-scheme: light;
+  background-color: var(--color-bg);
+  color: var(--color-ink);
+  font-family: var(--font-sans);
+}
+
+/* Focus visibile ovunque (tastiera), coerente su tutti i componenti custom */
+:focus-visible {
+  outline: 2px solid var(--color-primary);
+  outline-offset: 2px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}

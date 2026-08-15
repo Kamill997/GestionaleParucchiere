@@ -1,0 +1,31 @@
+# --- Frontend (Node/Vite) ---
+frontend/node_modules/
+frontend/dist/
+frontend/dist-ssr/
+frontend/*.local
+frontend/coverage/
+
+# --- Backend (Python/Django) ---
+backend/.venv/
+backend/**/__pycache__/
+backend/**/*.pyc
+backend/staticfiles/
+backend/media/
+backend/*.sqlite3
+backend/.pytest_cache/
+backend/.ruff_cache/
+
+# --- Env ---
+.env
+.env.*
+!.env.example
+
+# --- Editor / OS ---
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+
+# --- Logs ---
+*.log
+npm-debug.log*
