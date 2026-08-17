@@ -1,6 +1,7 @@
 import { LogOut } from 'lucide-react'
 
 import { Button } from '@/components/ui/button'
+import { InstallButton } from '@/components/pwa/InstallButton'
 import { useCurrentUser, useLogout } from '@/features/auth/hooks'
 
 export function Header() {
@@ -12,6 +13,7 @@ export function Header() {
       <div />
       {user && (
         <div className="flex items-center gap-4">
+          <InstallButton />
           <div className="text-right leading-tight">
             <p className="text-sm font-medium text-ink">
               {[user.nome, user.cognome].filter(Boolean).join(' ') || user.email}

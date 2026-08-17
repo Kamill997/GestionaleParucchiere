@@ -40,10 +40,10 @@ Roadmap organizzata in fasi. Ogni fase presuppone il completamento (almeno parzi
 - [ ] Tracciamento pagamento/presenza e politica no-show (vedi `08-pagamenti.md`)
 
 ## Fase 5 — Implementazione PWA
-- [ ] Integrazione `vite-plugin-pwa`, manifest completo con icone
-- [ ] Service worker con strategie di caching definite (vedi `04-pwa-checklist.md`)
-- [ ] Test del comportamento offline
-- [ ] Test di installabilità su almeno due dispositivi/browser
+- [x] Integrazione `vite-plugin-pwa`, manifest completo con icone
+- [x] Service worker con strategie di caching definite (vedi `04-pwa-checklist.md`)
+- [ ] Test del comportamento offline (banner di stato fatto, coda di sincronizzazione IndexedDB non ancora)
+- [ ] Test di installabilità su almeno due dispositivi/browser (pulsante custom fatto, verifica su dispositivi reali non fattibile in questo ambiente)
 
 ## Fase 6 — Sicurezza e Hardening
 - [ ] Rate limiting su endpoint sensibili

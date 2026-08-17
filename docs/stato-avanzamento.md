@@ -89,7 +89,36 @@ Riepilogo per fase/modulo, vedi anche `README.md`:
   cliente + vista staff, **import/export Clienti**
 - `08-pagamenti.md` — pagamento/presenza/no-show, **dashboard guadagni completa**
 
-**106 test backend + 8 test frontend, tutti verdi.**
+**106 test backend + 12 test frontend, tutti verdi.**
+
+## Fase 5 — PWA (nucleo tecnico), aggiunta nello stesso filo di sessione
+
+Dopo i due moduli sopra, proseguito naturalmente con `04-pwa-checklist.md`
+(prossimo passo indicato a fine sessione precedente):
+
+- `vite-plugin-pwa` configurato in `vite.config.ts`: manifest (icone
+  192/512/maskable generate on-brand in `frontend/public/icons/` via
+  Pillow, dato che non esisteva un asset icona pronto), `lang: 'it'`
+  (di default sarebbe finito 'en', corretto)
+- Caching API secondo la tabella dei docs: `StaleWhileRevalidate` per
+  catalogo, `NetworkFirst` per dati critici, nessuna regola per le
+  mutazioni (comportamento di default Workbox: le route runtimeCaching
+  intercettano solo GET)
+- **Decisione deliberata**: `registerType: 'prompt'`, non `'autoUpdate'`
+  come lo snippet di esempio nel file docs — la prosa subito sotto quello
+  snippet chiede esplicitamente un banner non invasivo invece di un reload
+  forzato; seguito il requisito scritto, non l'esempio di codice
+- `UpdatePrompt.tsx`, `InstallButton.tsx` (via `beforeinstallprompt`),
+  `OfflineBanner.tsx` (stato rete) — nuovi componenti, montati in `App.tsx`
+  e `Header.tsx`
+- Verificato con build reale (`vite build`): `dist/sw.js` +
+  `manifest.webmanifest` generati correttamente, 33 entry precache
+- 4 nuovi test frontend (12 totali)
+- **Non fatto, dichiarato esplicitamente**: coda offline IndexedDB/Dexie
+  (solo il banner di stato, non la sincronizzazione), notifiche push
+  (serve il modulo Notifiche), verifica reale su dispositivi e audit
+  Lighthouse (non eseguibili in questo sandbox: niente HTTPS reale, niente
+  dispositivi fisici)
 
 ## Problemi aperti / rischi noti (invariati rispetto a prima)
 
@@ -113,14 +142,15 @@ Riepilogo per fase/modulo, vedi anche `README.md`:
 
 ## Prossimi passi
 
-1. **Fase 5 — PWA** (`docs/04-pwa-checklist.md`): `vite-plugin-pwa`,
-   manifest, service worker, test offline/installabilità. Prossimo modulo
-   naturale secondo `docs/05-passaggi-esecutivi.md`.
-2. **Modulo Notifiche**: sbloccherebbe sia l'email no-show di
+1. **Modulo Notifiche**: sbloccherebbe sia l'email no-show di
    `08-pagamenti.md` sia le notifiche di conferma/promemoria di
-   `esempio-settore-parrucchiere.md`.
+   `esempio-settore-parrucchiere.md`, sia le notifiche push della PWA
+   (nucleo tecnico già pronto, manca solo il backend VAPID/pywebpush).
+2. **PWA, coda offline**: IndexedDB/Dexie + Background Sync per le azioni
+   compiute offline (oggi solo segnalate con un banner, non messe in coda).
 3. **Impostazioni (UI)**: il backend (`Impostazione`/`get_int()`) esiste già
    ed è usato attivamente; manca solo una pagina per modificarlo senza
    passare da Django Admin.
 4. Committare su un repository Git reale e/o GitHub, non solo produrre uno
-   zip di consegna — riduce concretamente il rischio del punto sopra.
+   zip di consegna — riduce concretamente il rischio di un altro reset che
+   perda lavoro non salvato altrove.

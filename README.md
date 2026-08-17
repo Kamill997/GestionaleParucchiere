@@ -13,7 +13,7 @@ ad altri settori) e il caso applicato in `docs/esempio-settore-parrucchiere.md`.
   TanStack Query, Zustand — vedi `docs/01-frontend.md`
 - **Backend**: Python 3.12/3.13, Django 5 + Django REST Framework, PostgreSQL 16,
   Redis, Celery — vedi `docs/02-backend.md`
-- **PWA**: `vite-plugin-pwa` (Fase 5, non ancora iniziata) — vedi `docs/04-pwa-checklist.md`
+- **PWA**: `vite-plugin-pwa` (Fase 5, nucleo tecnico completo) — vedi `docs/04-pwa-checklist.md`
 
 ## Struttura
 
@@ -177,12 +177,41 @@ Implementazione:
       resta scoperta: richiede il modulo Notifiche (non ancora costruito,
       vedi sotto). L'evento viene comunque registrato in `AuditLog`.
 
+### Fase 5 — PWA (`04-pwa-checklist.md`)
+
+Parziale, nucleo tecnico completo:
+
+- [x] `vite-plugin-pwa` configurato: manifest (nome, colori del design
+      system, 3 icone on-brand generate in `frontend/public/icons/`),
+      service worker generato in build (`dist/sw.js`, precache ~560KB/33
+      entry verificato con `vite build` reale)
+- [x] Strategie di caching per le chiamate API, come da tabella dei docs:
+      `StaleWhileRevalidate` per il catalogo (servizi/operatori/disponibilita),
+      `NetworkFirst` per i dati critici (prenotazioni/clienti/dashboard),
+      nessuna cache sulle mutazioni (comportamento di default di Workbox,
+      le route `runtimeCaching` intercettano solo GET)
+- [x] `registerType: 'prompt'` — **non** `'autoUpdate'` come nello snippet
+      di esempio del file docs: la prosa subito sotto quello snippet chiede
+      esplicitamente una notifica non invasiva invece di un reload forzato,
+      quindi `UpdatePrompt.tsx` (banner "Nuova versione disponibile" con
+      pulsante "Ricarica") segue la prosa, non l'esempio di codice
+- [x] `InstallButton.tsx` — pulsante "Installa app" custom via
+      `beforeinstallprompt`, nell'Header
+- [x] `OfflineBanner.tsx` — banner "Sei offline" globale (stato rete)
+- [x] 4 nuovi test frontend (banner offline, pulsante di installazione)
+- [ ] Coda di sincronizzazione per azioni compiute offline (IndexedDB/Dexie
+      + Background Sync, dai docs) — non implementata, resta un'estensione
+      futura esplicita
+- [ ] Notifiche push (VAPID/pywebpush) — non implementate, richiedono il
+      modulo Notifiche (non ancora costruito)
+- [ ] Verifica reale di installabilità su dispositivi Android/iOS/desktop e
+      audit Lighthouse — non eseguibili in questo ambiente sandbox (niente
+      HTTPS reale, niente dispositivi fisici); da fare dopo il primo deploy
+
 ### Cosa resta scoperto
 
-- **Fase 5 (PWA)** — non iniziata: `vite-plugin-pwa`, manifest, service
-  worker, test offline/installabilità
 - **Modulo Notifiche** — non iniziato (solo stub): email no-show automatica,
-  promemoria prenotazioni, conferme
+  promemoria prenotazioni, conferme, e le notifiche push della PWA
 - **Documenti & Allegati**, **Ricerca globale** — non iniziati
 - **Reportistica PDF/Excel** oltre al CSV Clienti e ai report guadagni in-app
   — non iniziata come modulo dedicato
@@ -208,5 +237,5 @@ di lavoro (non da un file `.zip` fisico, non raggiungibile in quella
 sessione). Verificato che la ricostruzione fosse fedele al commit precedente
 prima di procedere: **79/79 test backend preesistenti verdi** e **5/5 test
 frontend preesistenti verdi**, prima di aggiungere qualunque riga di codice
-nuova. Il totale attuale è **106 test backend** e **8 test frontend**, tutti
+nuova. Il totale attuale è **106 test backend** e **12 test frontend**, tutti
 verdi.

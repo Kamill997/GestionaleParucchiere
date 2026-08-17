@@ -2,6 +2,8 @@ import { lazy, Suspense } from 'react'
 import { Route, Routes } from 'react-router-dom'
 
 import { AppShell } from '@/components/layout/AppShell'
+import { OfflineBanner } from '@/components/pwa/OfflineBanner'
+import { UpdatePrompt } from '@/components/pwa/UpdatePrompt'
 import { ProtectedRoute } from '@/features/auth/ProtectedRoute'
 
 import { AppProviders } from './providers'
@@ -48,6 +50,7 @@ function CaricamentoPagina() {
 export default function App() {
   return (
     <AppProviders>
+      <OfflineBanner />
       <Suspense fallback={<CaricamentoPagina />}>
         <Routes>
           <Route path="/login" element={<LoginPage />} />
@@ -65,6 +68,7 @@ export default function App() {
           </Route>
         </Routes>
       </Suspense>
+      <UpdatePrompt />
     </AppProviders>
   )
 }

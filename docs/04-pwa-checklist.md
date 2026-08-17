@@ -99,10 +99,15 @@ Requisiti tecnici richiesti dai browser (Chrome/Edge) per proporre l'installazio
 
 ## Checklist rapida pre-rilascio
 
-- [ ] Manifest completo con tutte le icone richieste
-- [ ] Service worker registrato correttamente in produzione (verificare anche in incognito)
-- [ ] App installabile su Android, iOS (supporto parziale/diverso su Safari) e desktop
-- [ ] Comportamento offline testato (cosa succede se cade la connessione a metà di un'operazione?)
-- [ ] Notifiche push testate su almeno due browser diversi
-- [ ] Audit Lighthouse con punteggio PWA verde
-- [ ] HTTPS attivo su tutti gli ambienti, incluso staging
+- [x] Manifest completo con tutte le icone richieste (192/512/maskable, generate on-brand)
+- [x] Service worker registrato in build di produzione (`vite build` genera `sw.js` + precache, verificato)
+- [ ] App installabile su Android, iOS (supporto parziale/diverso su Safari) e desktop — pulsante "Installa app" via `beforeinstallprompt` implementato; verifica su dispositivi reali resta da fare dopo il deploy (non testabile in questo ambiente sandbox)
+- [ ] Comportamento offline testato end-to-end — banner "Sei offline" implementato e testato; coda di sincronizzazione per azioni offline (IndexedDB/Dexie + Background Sync) non ancora implementata
+- [ ] Notifiche push testate su almeno due browser diversi — non implementate (richiedono il modulo Notifiche, non ancora costruito)
+- [ ] Audit Lighthouse con punteggio PWA verde — da eseguire dopo il deploy (richiede HTTPS reale)
+- [ ] HTTPS attivo su tutti gli ambienti, incluso staging — dipende dall'hosting scelto (`09-hosting-e-dominio.md`), non ancora fatto
+
+> Nota di implementazione: `registerType: 'prompt'` (non `'autoUpdate'` come
+> nello snippet di esempio più in alto in questo file) per rispettare
+> davvero la richiesta di "notifica non invasiva... invece di forzare
+> l'aggiornamento silenzioso" — vedi `frontend/src/components/pwa/UpdatePrompt.tsx`.
