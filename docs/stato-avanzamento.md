@@ -140,17 +140,39 @@ Dopo i due moduli sopra, proseguito naturalmente con `04-pwa-checklist.md`
 - Import/export Clienti: elaborazione sincrona, limite 5MB — va bene per un
   singolo salone, non scala a dataset grandi (semplificazione deliberata).
 
+## Modulo Notifiche — aggiunto nello stesso filo di sessione
+
+Terzo modulo dopo import/export e dashboard guadagni, prima candidatura
+indicata a fine giro PWA (sblocca l'ultimo punto aperto di 08-pagamenti.md
+e le notifiche di esempio-settore-parrucchiere.md):
+
+- `apps/notifiche/` (models/services/serializers/views/urls/admin) da zero:
+  modello `Notifica`, `crea_notifica()`/`notifica_cliente()` (gestisce
+  anche i clienti ospiti senza account, solo email diretta)
+  /`notifica_amministratori()`, backend email a console in sviluppo
+- Collegato a: creazione prenotazione (conferma cliente + avviso operatore),
+  cancellazione da staff (avviso cliente, non a se stessi se e' il cliente
+  a cancellare), soglia no-show raggiunta (avviso cliente + admin —
+  **completa l'ultimo punto di 08-pagamenti.md**), sblocco cliente (avviso admin)
+- `apps/prenotazioni/tasks.py`: task Celery per il promemoria 24h, logica
+  scritta e testata, schedulazione Celery Beat non configurata (dichiarato)
+- Frontend: `NotificationBell.tsx` nell'Header, badge non lette con polling
+- 16 nuovi test backend + 2 frontend
+
+**122 test backend + 14 test frontend, tutti verdi.**
+
 ## Prossimi passi
 
-1. **Modulo Notifiche**: sbloccherebbe sia l'email no-show di
-   `08-pagamenti.md` sia le notifiche di conferma/promemoria di
-   `esempio-settore-parrucchiere.md`, sia le notifiche push della PWA
-   (nucleo tecnico già pronto, manca solo il backend VAPID/pywebpush).
-2. **PWA, coda offline**: IndexedDB/Dexie + Background Sync per le azioni
+1. **Notifiche push** (VAPID/pywebpush): il modulo Notifiche e il nucleo
+   PWA esistono entrambi già, manca solo il collegamento vero e proprio
+   (chiavi VAPID, `PushSubscription` model, handler `push` nel service worker).
+2. **Celery Beat**: schedulare `invia_promemoria_prenotazioni` (già scritto
+   e testato) e aggiungere il servizio in `docker-compose.yml`.
+3. **PWA, coda offline**: IndexedDB/Dexie + Background Sync per le azioni
    compiute offline (oggi solo segnalate con un banner, non messe in coda).
-3. **Impostazioni (UI)**: il backend (`Impostazione`/`get_int()`) esiste già
+4. **Impostazioni (UI)**: il backend (`Impostazione`/`get_int()`) esiste già
    ed è usato attivamente; manca solo una pagina per modificarlo senza
    passare da Django Admin.
-4. Committare su un repository Git reale e/o GitHub, non solo produrre uno
+5. Committare su un repository Git reale e/o GitHub, non solo produrre uno
    zip di consegna — riduce concretamente il rischio di un altro reset che
    perda lavoro non salvato altrove.

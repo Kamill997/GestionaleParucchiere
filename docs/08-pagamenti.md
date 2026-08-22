@@ -40,7 +40,7 @@ Se in futuro si volesse offrire un pagamento online (es. una caparra), significh
 - [ ] Campo stato presenza sulla prenotazione, con i tre stati definiti
 - [ ] Conteggio no-show per email/telefono (anche per prenotazioni senza account)
 - [ ] Soglia di no-show configurabile (default 2-3)
-- [ ] Email automatica di avviso al raggiungimento della soglia
+- [x] Email automatica di avviso al raggiungimento della soglia (modulo Notifiche, con backend email in console per sviluppo)
 - [ ] Blocco automatico di nuove prenotazioni da email/telefono bloccati
 - [ ] Sblocco manuale disponibile per l'amministratore
 - [ ] Dashboard guadagni basata sui dati marcati manualmente (totale, per cliente, per servizio, per operatore)

@@ -125,6 +125,27 @@ def segna_presenza(prenotazione: Prenotazione, nuovo_stato: str, *, autore=None)
                 dettagli={'contatore_no_show': cliente.contatore_no_show, 'soglia': soglia},
             )
 
+            # docs/08-pagamenti.md, "Notifiche collegate": avviso al cliente
+            # (completa l'ultimo punto ancora aperto del checklist di questo
+            # file) + notifica interna a tutti gli Amministratori.
+            from apps.notifiche.models import TipoNotifica
+            from apps.notifiche.services import notifica_amministratori, notifica_cliente
+
+            notifica_cliente(
+                cliente,
+                TipoNotifica.SOGLIA_NO_SHOW_RAGGIUNTA,
+                'Prenotazioni bloccate per mancate presentazioni',
+                f'Hai raggiunto {cliente.contatore_no_show} mancate presentazioni al salone. '
+                'Le tue prenotazioni future sono bloccate: contatta il salone per sbloccarle.',
+            )
+            notifica_amministratori(
+                TipoNotifica.CLIENTE_BLOCCATO,
+                'Cliente bloccato per no-show',
+                f"{cliente.nome} e' stato bloccato automaticamente "
+                f'({cliente.contatore_no_show} mancate presentazioni, soglia {soglia}).',
+                link='/clienti',
+            )
+
     return prenotazione
 
 
@@ -144,6 +165,16 @@ def sblocca_cliente(cliente, *, autore=None) -> None:
         azione='cliente_sbloccato',
         entita_coinvolta=f'Cliente:{cliente.id}',
         dettagli={},
+    )
+
+    from apps.notifiche.models import TipoNotifica
+    from apps.notifiche.services import notifica_amministratori
+
+    notifica_amministratori(
+        TipoNotifica.CLIENTE_SBLOCCATO,
+        'Cliente sbloccato',
+        f"{cliente.nome} e' stato sbloccato manualmente.",
+        link='/clienti',
     )
 
 

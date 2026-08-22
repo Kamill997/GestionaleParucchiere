@@ -97,6 +97,10 @@ Tutte sotto `/api/v1/`, JWT in cookie httpOnly (non header `Authorization`):
 | `prenotazioni/{id}/segna-presenza/` | POST | staff | incrementa il no-show se assente |
 | `dashboard/kpi/` | GET | staff | prenotazioni oggi/settimana, servizio top, occupazione, fatturato, tasso no-show |
 | `dashboard/report-guadagni/` | GET | ruolo `Amministratore` | guadagni per servizio/operatore (7gg), top clienti (storico), clienti vicini al blocco |
+| `notifiche/` | GET | autenticato | proprie notifiche in-app, paginato |
+| `notifiche/non-lette-count/` | GET | autenticato | conteggio non lette (badge) |
+| `notifiche/{id}/segna-letta/` | POST | autenticato | segna una notifica come letta |
+| `notifiche/segna-tutte-lette/` | POST | autenticato | segna tutte le proprie notifiche come lette |
 
 Le richieste `POST`/`PUT`/`PATCH`/`DELETE` autenticate via cookie richiedono
 l'header `X-CSRFToken`, tranne `login`. Tutto questo è già gestito da
@@ -202,22 +206,57 @@ Parziale, nucleo tecnico completo:
 - [ ] Coda di sincronizzazione per azioni compiute offline (IndexedDB/Dexie
       + Background Sync, dai docs) — non implementata, resta un'estensione
       futura esplicita
-- [ ] Notifiche push (VAPID/pywebpush) — non implementate, richiedono il
-      modulo Notifiche (non ancora costruito)
+- [ ] Notifiche push (VAPID/pywebpush) — non implementate: il modulo
+      Notifiche ora esiste (in-app + email, vedi sotto), ma il canale push
+      vero e proprio resta da collegare
 - [ ] Verifica reale di installabilità su dispositivi Android/iOS/desktop e
       audit Lighthouse — non eseguibili in questo ambiente sandbox (niente
       HTTPS reale, niente dispositivi fisici); da fare dopo il primo deploy
 
+### Modulo Notifiche
+
+Completo per i canali in-app ed email (docs/03-componenti-e-workflow.md,
+docs/esempio-settore-parrucchiere.md "Notifiche specifiche del settore",
+docs/08-pagamenti.md "Notifiche collegate"):
+
+- `apps/notifiche/models.py` — modello `Notifica` (destinatario, tipo,
+  titolo, messaggio, link, letta); `apps/notifiche/services.py` —
+  `crea_notifica()`/`notifica_cliente()`/`notifica_amministratori()`,
+  invio email automatico per i tipi che lo richiedono secondo le tabelle
+  dei docs (backend email a console in sviluppo, `EMAIL_BACKEND`
+  configurabile via env per produzione)
+- Un Cliente ospite (senza account, vedi `08-pagamenti.md`) riceve solo
+  l'email diretta al proprio indirizzo: nessuna riga `Notifica` senza uno
+  `User` a cui agganciarla
+- Collegato agli eventi reali già esistenti: creazione prenotazione
+  (conferma al cliente + avviso in-app all'operatore), cancellazione da
+  parte dello staff (avviso al cliente — un cliente che cancella da solo
+  non viene notificato di una sua stessa azione), raggiungimento soglia
+  no-show (avviso al cliente + notifica interna a tutti gli Amministratori
+  — **completa l'ultimo punto rimasto aperto di `08-pagamenti.md`**),
+  sblocco cliente (notifica interna agli Amministratori)
+- `apps/prenotazioni/tasks.py` — task Celery `invia_promemoria_prenotazioni`
+  per il promemoria 24h prima; la schedulazione periodica (Celery Beat) è
+  un passo di deployment non esercitato in questo ambiente, la logica è
+  scritta e testata chiamando il task direttamente
+- API: `notifiche/` (lista proprie notifiche), `notifiche/non-lette-count/`,
+  `notifiche/{id}/segna-letta/`, `notifiche/segna-tutte-lette/`
+- Frontend: `NotificationBell.tsx` nell'Header (badge non lette, polling
+  60s, dropdown con segna-letta al click)
+- 16 nuovi test backend (servizi, API, integrazione con i flussi
+  prenotazioni/no-show, task promemoria) + 2 nuovi test frontend
+
 ### Cosa resta scoperto
 
-- **Modulo Notifiche** — non iniziato (solo stub): email no-show automatica,
-  promemoria prenotazioni, conferme, e le notifiche push della PWA
 - **Documenti & Allegati**, **Ricerca globale** — non iniziati
 - **Reportistica PDF/Excel** oltre al CSV Clienti e ai report guadagni in-app
   — non iniziata come modulo dedicato
 - **Impostazioni (UI)** — il modello `Impostazione`/`get_int()` esiste ed è
   usato attivamente (soglia no-show, buffer prenotazioni...), ma senza una
   pagina di gestione dedicata: si modifica via Django Admin
+- **Notifiche push** e **coda offline IndexedDB** (vedi sezione PWA sopra)
+- **Celery Beat** non configurato: il task promemoria esiste ma non è
+  ancora schedulato periodicamente in `docker-compose.yml`
 - **Fase 6-9** (Hardening formale, E2E, Deploy, Monitoraggio) — non iniziate
 
 ## Convenzioni
@@ -237,5 +276,5 @@ di lavoro (non da un file `.zip` fisico, non raggiungibile in quella
 sessione). Verificato che la ricostruzione fosse fedele al commit precedente
 prima di procedere: **79/79 test backend preesistenti verdi** e **5/5 test
 frontend preesistenti verdi**, prima di aggiungere qualunque riga di codice
-nuova. Il totale attuale è **106 test backend** e **12 test frontend**, tutti
+nuova. Il totale attuale è **122 test backend** e **14 test frontend**, tutti
 verdi.

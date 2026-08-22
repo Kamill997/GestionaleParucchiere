@@ -228,6 +228,14 @@ if 'pytest' in sys.modules:
     REST_FRAMEWORK['DEFAULT_THROTTLE_CLASSES'] = []
 
 
+# --- Email (apps.notifiche) ---
+# Console backend in sviluppo (stampa le email nel log invece di inviarle
+# davvero): non serve un provider SMTP reale per costruire/testare il
+# modulo Notifiche. Swappabile via env per produzione senza toccare codice.
+EMAIL_BACKEND = env('EMAIL_BACKEND', default='django.core.mail.backends.console.EmailBackend')
+DEFAULT_FROM_EMAIL = env('DEFAULT_FROM_EMAIL', default='no-reply@gestionale-salone.local')
+
+
 # --- Celery ---
 # Broker/backend condividono Redis con la cache (vedi docker-compose.yml, servizio celery-worker).
 

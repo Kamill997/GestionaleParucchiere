@@ -72,7 +72,7 @@ Se tra le note cliente si raccolgono informazioni assimilabili a dati sulla salu
 - [x] Calcolo disponibilità funzionante (turni + prenotazioni esistenti + buffer)
 - [x] Prevenzione doppia prenotazione verificata anche in caso di richieste simultanee
 - [x] Policy di cancellazione definita e mostrata chiaramente al cliente
-- [ ] Notifiche di conferma, promemoria e cancellazione funzionanti (modulo Notifiche non ancora costruito)
+- [x] Notifiche di conferma, promemoria e cancellazione funzionanti (in-app + email; promemoria 24h scritto e testato, schedulazione periodica Celery Beat da collegare in deploy)
 - [x] Calendario amministrativo per operatore/salone
 - [x] Reportistica di base (fatturato, occupazione, no-show)
 - [x] Import dell'anagrafica clienti esistente

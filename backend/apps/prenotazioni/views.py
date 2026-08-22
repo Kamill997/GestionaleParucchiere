@@ -7,6 +7,8 @@ from rest_framework.decorators import action
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
+from apps.notifiche.models import TipoNotifica
+from apps.notifiche.services import crea_notifica, notifica_cliente
 from apps.operatori.models import Operatore
 from apps.servizi.models import Servizio
 
@@ -78,16 +80,54 @@ class PrenotazioneViewSet(viewsets.ModelViewSet):
                 )
             serializer.save(cliente=user.cliente)
 
+        prenotazione = serializer.instance
+        # docs/esempio-settore-parrucchiere.md, "Notifiche specifiche del
+        # settore": conferma immediata al cliente, in-app all'operatore
+        # assegnato (niente email per l'operatore: la tabella dei docs
+        # dice "in-app, eventualmente push", non email).
+        notifica_cliente(
+            prenotazione.cliente,
+            TipoNotifica.CONFERMA_PRENOTAZIONE,
+            'Prenotazione confermata',
+            f"Il tuo appuntamento per {prenotazione.servizio.nome} e' confermato per "
+            f'{prenotazione.inizio:%d/%m/%Y alle %H:%M}.',
+            link='/le-mie-prenotazioni',
+        )
+        crea_notifica(
+            prenotazione.operatore.user,
+            TipoNotifica.NUOVA_PRENOTAZIONE_RICEVUTA,
+            'Nuova prenotazione ricevuta',
+            f'{prenotazione.cliente.nome} ha prenotato {prenotazione.servizio.nome} per '
+            f'{prenotazione.inizio:%d/%m/%Y alle %H:%M}.',
+            link='/gestione-prenotazioni',
+        )
+
     @action(detail=True, methods=['post'])
     def cancella(self, request, pk=None):
         prenotazione = self.get_object()
+        richiedente_e_staff = _e_staff(request.user)
         serializer = CancellazioneSerializer(
             data={},
-            context={'prenotazione': prenotazione, 'richiedente_e_staff': _e_staff(request.user)},
+            context={'prenotazione': prenotazione, 'richiedente_e_staff': richiedente_e_staff},
         )
         serializer.is_valid(raise_exception=True)
         prenotazione.stato = StatoPrenotazione.CANCELLATA
         prenotazione.save(update_fields=['stato'])
+
+        # docs/esempio-settore-parrucchiere.md: "Cancellazione/modifica da
+        # parte del salone -> Cliente". Notifica solo se e' lo staff a
+        # cancellare: se e' il cliente stesso ad annullare, lo sa gia' (l'ha
+        # appena fatto lui), non serve avvisarlo di una sua azione.
+        if richiedente_e_staff:
+            notifica_cliente(
+                prenotazione.cliente,
+                TipoNotifica.CANCELLAZIONE_PRENOTAZIONE,
+                'Prenotazione cancellata dal salone',
+                f'Il tuo appuntamento per {prenotazione.servizio.nome} del '
+                f"{prenotazione.inizio:%d/%m/%Y alle %H:%M} e' stato cancellato dal salone. "
+                'Contatta il salone per riprogrammarlo.',
+                link='/le-mie-prenotazioni',
+            )
         return Response(PrenotazioneSerializer(prenotazione).data)
 
     @action(detail=True, methods=['post'], url_path='segna-presenza')

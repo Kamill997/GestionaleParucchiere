@@ -37,6 +37,7 @@ urlpatterns = [
     path('api/v1/', include('apps.operatori.urls')),
     path('api/v1/', include('apps.clienti.urls')),
     path('api/v1/', include('apps.prenotazioni.urls')),
+    path('api/v1/', include('apps.notifiche.urls')),
 ]
 
 if settings.DEBUG:
