@@ -42,6 +42,11 @@ const GestionePrenotazioniPage = lazy(() =>
 const ClientiPage = lazy(() =>
   import('@/features/clienti/ClientiPage').then((m) => ({ default: m.ClientiPage })),
 )
+const ImpostazioniPage = lazy(() =>
+  import('@/features/impostazioni/ImpostazioniPage').then((m) => ({
+    default: m.ImpostazioniPage,
+  })),
+)
 
 function CaricamentoPagina() {
   return <div className="p-6 text-sm text-ink-muted">Caricamento…</div>
@@ -64,6 +69,7 @@ export default function App() {
               <Route path="/clienti" element={<ClientiPage />} />
               <Route path="/utenti" element={<UtentiPage />} />
               <Route path="/gestione-prenotazioni" element={<GestionePrenotazioniPage />} />
+              <Route path="/impostazioni" element={<ImpostazioniPage />} />
             </Route>
           </Route>
         </Routes>

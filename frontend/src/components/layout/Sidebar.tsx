@@ -5,6 +5,7 @@ import {
   LayoutDashboard,
   ListChecks,
   Scissors,
+  Settings,
   UserCog,
   UserRound,
   Users,
@@ -38,6 +39,7 @@ const NAV_ITEMS: NavItem[] = [
   { to: '/operatori', label: 'Operatori', icon: Users, roles: ['Amministratore'] },
   { to: '/clienti', label: 'Clienti', icon: UserRound, roles: ['Amministratore', 'Operatore'] },
   { to: '/utenti', label: 'Utenti e ruoli', icon: UserCog, roles: ['Amministratore'] },
+  { to: '/impostazioni', label: 'Impostazioni', icon: Settings, roles: ['Amministratore'] },
 ]
 
 export function Sidebar() {
