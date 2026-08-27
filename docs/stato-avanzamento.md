@@ -176,3 +176,59 @@ e le notifiche di esempio-settore-parrucchiere.md):
 5. Committare su un repository Git reale e/o GitHub, non solo produrre uno
    zip di consegna — riduce concretamente il rischio di un altro reset che
    perda lavoro non salvato altrove.
+
+## Fasi 6-9 + Celery Beat + Impostazioni UI — stesso filo di sessione
+
+Dopo il modulo Notifiche, completati i passi di maturità rimanenti:
+
+### Impostazioni UI (Fase 4 completa)
+- `settings_app/serializers.py`, `views.py`, `urls.py`: endpoint
+  `impostazioni/` (list+update, Amministratore-only; validazione intera
+  non-negativa; lazy get_or_create di tutte le chiavi note alla prima
+  apertura)
+- `features/impostazioni/`: `ImpostazioniPage.tsx` con editing inline
+  (click → input inline → Invio/Esc)
+- Rotta `/impostazioni` + voce sidebar
+- 6 nuovi test backend
+
+### Celery Beat (schedulazione task promemoria)
+- `CELERY_BEAT_SCHEDULE` in `settings.py`: `invia_promemoria_prenotazioni`
+  ogni 15 minuti via `crontab`
+- Servizio `celery-beat` in `docker-compose.yml` con schedule file
+  persistente su volume dedicato `celerybeat_data`
+
+### Hardening sicurezza (Fase 6)
+- `SECURE_HSTS_*`, `SESSION_COOKIE_SECURE`, `CSRF_COOKIE_SECURE`,
+  `X_FRAME_OPTIONS`, `SECURE_SSL_REDIRECT` — tutti condizionati a
+  `not DEBUG`, non rompono sviluppo locale
+
+### Health check endpoint (Fase 9)
+- `django-health-check` v4 installato, endpoint `/health/` in `urls.py`
+- Healthcheck aggiunto al servizio `backend` in `docker-compose.yml`
+- Nota tecnica risolta: v4 non ha i sottomoduli `db`/`cache`/`storage`
+  della documentazione online (rimandava a v3); usata `HealthCheckView`
+  direttamente
+
+### CI/CD (Fasi 7-8)
+- `ci.yml` aggiornato: aggiunto Redis come servizio, `migrate` prima di
+  `migrate --check`, `npx tsc -b` esplicito nel job frontend, build
+  completa in CI (verifica sw.js + manifest PWA ad ogni push)
+- `deploy.yml` nuovo: Cloudflare Pages (frontend via wrangler-action) +
+  Railway (backend via railway-cli), trigger su push a main
+
+**131 test backend + 14 test frontend, tutti verdi.**
+
+## Prossimi passi
+
+1. **Primo deploy reale**: configurare i secret GitHub (`RAILWAY_TOKEN`,
+   `CLOUDFLARE_API_TOKEN`, `CLOUDFLARE_ACCOUNT_ID`, `VITE_API_URL`) e
+   fare il primo push a main. Tutto il codice di deploy è già scritto.
+2. **Playwright E2E**: aggiungere test end-to-end sui flussi critici
+   (login, prenotazione, no-show) — l'unico pezzo di testing ancora mancante.
+3. **Sentry**: aggiungere `sentry-sdk` a `requirements.txt` e
+   `SENTRY_DSN` a `.env.example` dopo il primo deploy.
+4. **Notifiche push** (VAPID): il modulo Notifiche e la PWA esistono;
+   manca solo il collegamento (`PushSubscription` model, endpoint
+   `/push-subscribe/`, handler nel service worker).
+5. **pip-audit / npm audit**: scansione dipendenze da aggiungere alla CI
+   (Fase 6 ancora scoperta).

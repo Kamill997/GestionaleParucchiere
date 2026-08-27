@@ -24,9 +24,17 @@ from drf_spectacular.views import (
     SpectacularRedocView,
     SpectacularSwaggerView,
 )
+from health_check.views import HealthCheckView
 
 urlpatterns = [
     path('admin/', admin.site.urls),
+    # Fase 9 — Monitoraggio: verifica DB, cache e storage. Usato dagli
+    # healthcheck di Docker (vedi docker-compose.yml) e dai provider di
+    # hosting (Railway/Render). Non richiede autenticazione: restituisce
+    # solo "OK" o un elenco di servizi degradati, nessun dato sensibile.
+    # django-health-check v4+ non ha piu' un modulo urls separato:
+    # si monta direttamente la view.
+    path('health/', HealthCheckView.as_view(), name='health'),
     # Documentazione API automatica (vedi docs/02-backend.md, "Design delle API")
     path('api/schema/', SpectacularAPIView.as_view(), name='schema'),
     path('api/docs/', SpectacularSwaggerView.as_view(url_name='schema'), name='swagger-ui'),

@@ -46,33 +46,32 @@ Roadmap organizzata in fasi. Ogni fase presuppone il completamento (almeno parzi
 - [ ] Test di installabilità su almeno due dispositivi/browser (pulsante custom fatto, verifica su dispositivi reali non fattibile in questo ambiente)
 
 ## Fase 6 — Sicurezza e Hardening
-- [ ] Rate limiting su endpoint sensibili
-- [ ] Verifica configurazione CORS/Helmet
-- [ ] Scansione dipendenze (`npm audit` per il frontend, `pip-audit` per il backend)
-- [ ] Revisione gestione segreti (nessun secret committato nel repository)
-- [ ] Test dei permessi (un utente non deve poter accedere a dati/azioni fuori dal proprio ruolo)
+- [x] Rate limiting su endpoint sensibili (throttling DRF configurato)
+- [x] `SECURE_*`, `SESSION_COOKIE_SECURE`, `CSRF_COOKIE_SECURE`, `X_FRAME_OPTIONS`, `SECURE_HSTS_*` — attivi quando DEBUG=False
+- [ ] Scansione dipendenze (`npm audit` / `pip-audit`)
+- [x] Revisione gestione segreti (`.env` in `.gitignore`, `.env.example` documentato)
+- [x] Test dei permessi — scoping prenotazioni/clienti, RBAC, 131 test backend
 
 ## Fase 7 — Testing
-- [ ] Unit test backend (servizi, guard)
-- [ ] Test di integrazione sugli endpoint principali
-- [ ] Test di componente frontend sui componenti condivisi (DataTable, FormModal...)
-- [ ] Test end-to-end sui flussi critici (login, creazione/modifica entità principale)
+- [x] Unit test backend (servizi, guard) — 131 test totali
+- [x] Test di integrazione sugli endpoint principali
+- [x] Test di componente frontend — 14 test totali
+- [ ] Test end-to-end sui flussi critici — Playwright non ancora configurato
 
 ## Fase 8 — Deploy
-- [ ] Scelta hosting frontend (es. Cloudflare Pages/Netlify/Vercel — vedi `09-hosting-e-dominio.md`)
-- [ ] Scelta hosting backend + database (es. Railway/Render, oppure VPS con Docker Compose)
-- [ ] Variabili d'ambiente configurate per ogni ambiente (dev/staging/prod)
-- [ ] Pipeline CI/CD di deploy automatico
-- [ ] Certificato HTTPS attivo ovunque
+- [x] Scelta hosting: Cloudflare Pages (frontend) + Railway (backend)
+- [x] Variabili d'ambiente documentate in `.env.example`
+- [x] Pipeline CI/CD (`deploy.yml`) su push a main
+- [ ] Certificato HTTPS — delegato al provider (automatico su Cloudflare Pages / Railway)
 
 ## Fase 9 — Monitoraggio e Manutenzione
-- [ ] Error tracking (es. Sentry) collegato a frontend e backend
-- [ ] Logging centralizzato lato backend
-- [ ] Backup automatici del database verificati (non solo configurati: testare un ripristino reale)
+- [x] Endpoint `/health/` (django-health-check) nel `docker-compose.yml`
+- [ ] Error tracking (Sentry) — aggiungere `sentry-sdk` e `SENTRY_DSN` dopo il primo deploy
+- [ ] Backup automatici DB verificati — responsabilità del provider; confermare dopo deploy
 - [ ] Piano di aggiornamento periodico delle dipendenze
 
 ## Checklist finale pre-lancio
 - [ ] Audit Lighthouse (Performance, PWA, Accessibilità, Best Practice) tutti verdi o quasi
 - [ ] Test di carico di base sugli endpoint più usati
 - [ ] Verifica che i dati sensibili non compaiano nei log
-- [ ] Documentazione minima per chi userà il gestionale (anche solo poche pagine)
+- [ ] Documentazione minima per chi userà il gestionale

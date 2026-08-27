@@ -70,9 +70,10 @@ Lo step di deploy vero e proprio dipende dall'hosting scelto (vedi `09-hosting-e
 
 ## Checklist
 
-- [ ] `docker compose up` avvia l'intero ambiente (DB, cache, backend, worker, frontend) con un solo comando
-- [ ] `.env.example` presente e aggiornato, `.env` reale mai committato
-- [ ] Dockerfile con stage separati per sviluppo e produzione
-- [ ] Endpoint di healthcheck applicativo funzionante
-- [ ] Pipeline CI verde su lint, test e build per entrambi i progetti
-- [ ] Pipeline di deploy testata almeno una volta end-to-end verso l'ambiente di staging
+- [x] `docker compose up` avvia l'intero ambiente (DB, cache, backend, worker, **beat scheduler**, frontend) con un solo comando
+- [x] `.env.example` presente e aggiornato, `.env` reale mai committato
+- [x] Dockerfile con stage separati per sviluppo e produzione
+- [x] Endpoint di healthcheck applicativo `/health/` funzionante
+- [x] Pipeline CI verde su lint, test e build per entrambi i progetti
+- [x] Pipeline di deploy (`deploy.yml`) scritta per Railway (backend) + Cloudflare Pages (frontend)
+- [ ] Pipeline di deploy testata end-to-end verso l'ambiente di staging (da fare dopo la configurazione dei secret su GitHub)

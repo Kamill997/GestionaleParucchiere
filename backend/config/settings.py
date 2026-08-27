@@ -36,6 +36,21 @@ ALLOWED_HOSTS = env.list('DJANGO_ALLOWED_HOSTS', default=[])
 
 AUTH_USER_MODEL = 'users.User'
 
+# --- Sicurezza (Fase 6) ---
+# Attivi solo in produzione (DEBUG=False) per non rompere lo sviluppo locale
+# che gira su http, senza HTTPS. Coerenti con docs/04-pwa-checklist.md che
+# richede HTTPS obbligatorio e con docs/09-hosting-e-dominio.md.
+if not DEBUG:
+    SECURE_HSTS_SECONDS = 31_536_000  # 1 anno
+    SECURE_HSTS_INCLUDE_SUBDOMAINS = True
+    SECURE_HSTS_PRELOAD = True
+    SECURE_SSL_REDIRECT = True
+    SESSION_COOKIE_SECURE = True
+    CSRF_COOKIE_SECURE = True
+    SECURE_BROWSER_XSS_FILTER = True
+    SECURE_CONTENT_TYPE_NOSNIFF = True
+    X_FRAME_OPTIONS = 'DENY'
+
 
 # --- Application definition ---
 
@@ -62,6 +77,11 @@ INSTALLED_APPS = [
     'apps.notifiche',
     'apps.audit_log',
     'apps.settings_app',
+    # Fase 9 — Monitoraggio: endpoint /health per Docker healthcheck e
+    # provider di hosting (vedi docs/06-docker-e-cicd.md). La versione v4+
+    # di django-health-check non separa piu' i check in sottomoduli distinti:
+    # il check di DB, cache e storage e' incluso nel pacchetto base.
+    'health_check',
 ]
 
 MIDDLEWARE = [
@@ -245,3 +265,22 @@ CELERY_ACCEPT_CONTENT = ['json']
 CELERY_TASK_SERIALIZER = 'json'
 CELERY_RESULT_SERIALIZER = 'json'
 CELERY_TIMEZONE = TIME_ZONE
+
+# --- Celery Beat (schedulazione task periodici) ---
+# Il servizio celery-beat nel docker-compose.yml legge questa configurazione
+# e lancia i task alla cadenza indicata. Ogni task va programmato alla stessa
+# cadenza di `finestra_minuti` (default 15) usata in
+# apps/prenotazioni/tasks.invia_promemoria_prenotazioni: in questo modo ogni
+# prenotazione attraversa la finestra una sola volta ricevendo un solo
+# promemoria, senza bisogno di un flag "gia' inviato" separato (vedi commento
+# nella funzione stessa).
+
+from celery.schedules import crontab  # noqa: E402
+
+CELERY_BEAT_SCHEDULE = {
+    'promemoria-prenotazioni-ogni-15-minuti': {
+        'task': 'apps.prenotazioni.tasks.invia_promemoria_prenotazioni',
+        'schedule': crontab(minute='*/15'),
+        'kwargs': {'ore_anticipo': 24, 'finestra_minuti': 15},
+    },
+}
