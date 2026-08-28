@@ -50,3 +50,29 @@ class Notifica(UUIDModel):
 
     def __str__(self):
         return f'{self.tipo} -> {self.destinatario} ({self.creato_il:%Y-%m-%d %H:%M})'
+
+
+class PushSubscription(UUIDModel):
+    """Sottoscrizione Web Push di un utente (un utente puo' avere piu'
+    dispositivi). Il browser invia il dict subscription_data al momento
+    del consenso tramite POST /api/v1/notifiche/push-subscribe/ (vedi
+    views.PushSubscribeView). Viene eliminata automaticamente quando il
+    server riceve 410 Gone (permesso revocato), vedi push_services.py."""
+
+    utente = models.ForeignKey(
+        settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name='push_subscriptions'
+    )
+    # Il dict completo di PushSubscription dal browser: {endpoint, keys: {auth, p256dh}}
+    subscription_data = models.JSONField()
+    # Endpoint come identificatore unico per evitare duplicati (stesso
+    # browser che chiama piu' volte il subscribe senza aver revocato prima).
+    endpoint = models.TextField(unique=True)
+    creato_il = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ['-creato_il']
+        verbose_name = 'Sottoscrizione push'
+        verbose_name_plural = 'Sottoscrizioni push'
+
+    def __str__(self):
+        return f'{self.utente} — {self.endpoint[:60]}…'

@@ -48,6 +48,17 @@ def crea_notifica(
     )
     if tipo in TIPI_CON_EMAIL and destinatario_user.email:
         _invia_email(destinatario_user.email, titolo, messaggio)
+
+    # Push non-blocking: ignorato silenziosamente se VAPID non e' configurato
+    # (sviluppo, CI) o se il task push fallisce per qualsiasi motivo.
+    # Non blocca mai la creazione della notifica in-app.
+    try:
+        from .push_services import invia_push_a_utente
+
+        invia_push_a_utente(destinatario_user, titolo, messaggio, link=link)
+    except Exception:
+        pass
+
     return notifica
 
 

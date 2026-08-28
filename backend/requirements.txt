@@ -30,9 +30,12 @@ drf-spectacular>=0.27
 
 # --- Monitoraggio (Fase 9) ---
 django-health-check>=3.18
+sentry-sdk[django]>=2.0
+pywebpush>=2.0
 
 # --- Testing / qualita' del codice ---
 ruff>=0.6
+pip-audit>=2.7
 pytest>=8.3
 pytest-django>=4.9
 factory-boy>=3.3

@@ -86,6 +86,11 @@ export default defineConfig({
     environment: 'jsdom',
     globals: true,
     setupFiles: './src/test/setup.ts',
+    // Esclude i file Playwright E2E: girano con `npm run test:e2e`,
+    // non con vitest. Senza questa esclusione vitest prova a raccogliere
+    // anche i file in e2e/ e crasha perche' la API di Playwright
+    // (test.describe) non e' compatibile con quella di Vitest.
+    exclude: ['**/node_modules/**', '**/dist/**', 'e2e/**'],
     // Esecuzione sequenziale dei file di test: con l'esecuzione concorrente
     // di default si e' osservata flakiness intermittente (stessa suite,
     // a volte verde a volte rossa) su una macchina sotto carico. La suite

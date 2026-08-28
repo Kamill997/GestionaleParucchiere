@@ -51,6 +51,27 @@ if not DEBUG:
     SECURE_CONTENT_TYPE_NOSNIFF = True
     X_FRAME_OPTIONS = 'DENY'
 
+    # --- Sentry (Fase 9 — Monitoraggio) ---
+    # Inizializzato solo in produzione, mai in sviluppo o nei test
+    # (riduplicherebbe errori intenzionali dei test come rumore nel tracker).
+    # SENTRY_DSN viene dalla variabile d'ambiente, mai committato nel repo.
+    _sentry_dsn = env('SENTRY_DSN', default='')
+    if _sentry_dsn:
+        import sentry_sdk
+        from sentry_sdk.integrations.celery import CeleryIntegration
+        from sentry_sdk.integrations.django import DjangoIntegration
+
+        sentry_sdk.init(
+            dsn=_sentry_dsn,
+            integrations=[DjangoIntegration(), CeleryIntegration()],
+            # Campiona il 10% delle transazioni per le performance
+            # (aggiustare dopo aver visto i volumi reali in produzione).
+            traces_sample_rate=0.1,
+            # Non inviare PII (email utente, IP) a Sentry di default:
+            # rispetta il GDPR senza configurazione aggiuntiva.
+            send_default_pii=False,
+        )
+
 
 # --- Application definition ---
 
@@ -255,6 +276,11 @@ if 'pytest' in sys.modules:
 EMAIL_BACKEND = env('EMAIL_BACKEND', default='django.core.mail.backends.console.EmailBackend')
 DEFAULT_FROM_EMAIL = env('DEFAULT_FROM_EMAIL', default='no-reply@gestionale-salone.local')
 
+
+# --- VAPID (notifiche push PWA, docs/04-pwa-checklist.md) ---
+VAPID_PRIVATE_KEY = env('VAPID_PRIVATE_KEY', default='')
+VAPID_PUBLIC_KEY = env('VAPID_PUBLIC_KEY', default='')
+VAPID_ADMIN_EMAIL = env('VAPID_ADMIN_EMAIL', default='admin@gestionale.local')
 
 # --- Celery ---
 # Broker/backend condividono Redis con la cache (vedi docker-compose.yml, servizio celery-worker).
