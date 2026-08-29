@@ -232,3 +232,36 @@ Dopo il modulo Notifiche, completati i passi di maturità rimanenti:
    `/push-subscribe/`, handler nel service worker).
 5. **pip-audit / npm audit**: scansione dipendenze da aggiungere alla CI
    (Fase 6 ancora scoperta).
+
+## Push notifications end-to-end + NAVIGATE handler — commit finale
+
+Ultimo pezzo che mancava dopo il commit VAPID: il flusso push era completo
+lato backend e nel service worker, ma mancavano due cose nel frontend:
+
+1. `src/sw.ts`: handler `push` (mostra notifica nativa) e handler
+   `notificationclick` (porta in primo piano/naviga), strategie di caching
+   runtime ora via `registerRoute` Workbox (migrate da `generateSW`
+   workbox config a `injectManifest` custom SW)
+2. `src/features/notifiche/push.ts`: client VAPID (fetch chiave pubblica,
+   requestPermission, pushManager.subscribe, POST /push-subscribe/)
+3. `usePushNotifications.ts`: hook stato + attiva()
+4. `PushPrompt.tsx`: banner discreto nel dropdown NotificationBell
+5. `src/main.tsx`: listener `postMessage NAVIGATE` dal service worker -
+   senza questo il notificationclick apre la finestra ma non naviga alla
+   rotta corretta (React Router non vede il cambio URL senza un evento
+   popstate esplicito)
+
+**Stato finale progetto:**
+- 131 test backend, 14 test Vitest frontend — tutti verdi
+- 7 commit git, build produzione funzionante
+- Tutto implementabile: import/export, dashboard guadagni, PWA (manifest +
+  SW custom + install + update + offline banner), Notifiche (in-app + email
+  + push VAPID end-to-end), Celery Beat, Impostazioni UI, Sentry, E2E
+  Playwright, pip-audit/npm-audit CI, deploy pipeline (Railway + CF Pages)
+
+**Cosa rimane solo come operativo (non codice):**
+1. Configurare 4 secret GitHub + fare git push origin main
+2. python manage.py generate_vapid_keys → copiare VAPID_* in .env produzione
+3. Sentry: creare progetto → copiare SENTRY_DSN in .env produzione
+4. Audit Lighthouse dopo il deploy (richiede HTTPS reale)
+5. Playwright test:e2e contro il backend reale (chromium install + utenti E2E)
