@@ -11,12 +11,15 @@ export default defineConfig({
     react(),
     tailwindcss(),
     VitePWA({
-      // docs/04-pwa-checklist.md, "Service Worker": l'esempio nel file usa
-      // 'autoUpdate', ma il paragrafo subito sotto chiede esplicitamente una
-      // "notifica non invasiva... invece di forzare l'aggiornamento
-      // silenzioso" - 'prompt' e' la scelta coerente con quel requisito
-      // (aggiornamento solo su conferma esplicita, vedi
-      // src/components/pwa/UpdatePrompt.tsx), non con lo snippet di esempio.
+      // 'injectManifest': usa il service worker custom in src/sw.ts invece
+      // di generarne uno da zero. Workbox inietta il precache manifest nel
+      // file, poi il handler 'push' scritto in sw.ts gestisce le notifiche
+      // native (docs/04-pwa-checklist.md, "Notifiche push").
+      // Con 'generateSW' (precedente configurazione) le notifiche arrivavano
+      // al browser ma non venivano mostrate: mancava questo handler.
+      strategies: 'injectManifest',
+      srcDir: 'src',
+      filename: 'sw.ts',
       registerType: 'prompt',
       includeAssets: ['favicon.svg'],
       manifest: {
@@ -38,38 +41,6 @@ export default defineConfig({
             type: 'image/png',
             purpose: 'maskable',
           },
-        ],
-      },
-      workbox: {
-        // Asset statici (JS/CSS/font) non hanno bisogno di una regola
-        // esplicita: il precaching di Workbox (glob sui file di build) li
-        // serve gia' Cache First di default - vedi docs/04-pwa-checklist.md.
-        runtimeCaching: [
-          {
-            // Dati poco volatili (catalogo): risposta immediata da cache +
-            // aggiornamento in background.
-            urlPattern: /\/api\/v1\/(servizi|operatori|disponibilita)\/.*/,
-            handler: 'StaleWhileRevalidate',
-            options: {
-              cacheName: 'catalogo-api-cache',
-              expiration: { maxEntries: 100, maxAgeSeconds: 60 * 60 * 24 },
-            },
-          },
-          {
-            // Dati critici/real-time (prenotazioni, clienti, dashboard,
-            // slot liberi): priorita' al dato fresco, cache solo come
-            // fallback se offline.
-            urlPattern: /\/api\/v1\/(prenotazioni|clienti|admin|dashboard|slot-disponibili)\/.*/,
-            handler: 'NetworkFirst',
-            options: {
-              cacheName: 'dati-critici-api-cache',
-              networkTimeoutSeconds: 5,
-              expiration: { maxEntries: 100, maxAgeSeconds: 60 * 5 },
-            },
-          },
-          // Nessuna regola per POST/PUT/DELETE: Workbox registra le route in
-          // runtimeCaching solo per GET di default, quindi le mutazioni non
-          // vengono mai servite dalla cache (docs/04-pwa-checklist.md).
         ],
       },
     }),

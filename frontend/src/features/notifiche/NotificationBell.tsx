@@ -7,6 +7,7 @@ import { Button } from '@/components/ui/button'
 import { cn } from '@/lib/utils'
 
 import { useNonLetteCount, useNotifiche, useSegnaLetta, useSegnaTutteLette } from './hooks'
+import { PushPrompt } from './PushPrompt'
 import type { Notifica } from './types'
 
 function formattaRelativo(iso: string) {
@@ -110,6 +111,7 @@ export function NotificationBell() {
               ))
             )}
           </div>
+          <PushPrompt />
         </div>
       )}
     </div>
