@@ -1,0 +1,8 @@
+# _redirects — Cloudflare Pages
+# https://developers.cloudflare.com/pages/configuration/redirects/
+#
+# SPA fallback: ogni percorso non trovato come file statico viene servito
+# da index.html, dove React Router decide cosa mostrare. Senza questa
+# regola un refresh su /le-mie-prenotazioni darebbe 404 da Cloudflare.
+
+/*    /index.html    200

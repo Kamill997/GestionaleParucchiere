@@ -1,0 +1,28 @@
+# _headers — Cloudflare Pages
+# https://developers.cloudflare.com/pages/configuration/headers/
+#
+# Header di sicurezza per la SPA (docs/06-docker-e-cicd.md, Fase 6).
+# I cookie httpOnly JWT vengono gestiti dal backend Django (HSTS, Secure
+# ecc.): qui si coprono solo gli header che Cloudflare Pages deve aggiungere
+# lato frontend.
+
+/*
+  X-Frame-Options: DENY
+  X-Content-Type-Options: nosniff
+  Referrer-Policy: strict-origin-when-cross-origin
+  Permissions-Policy: geolocation=(), microphone=(), camera=()
+  # Permette al service worker di funzionare correttamente (richiede COOP/COEP
+  # solo se si usano SharedArrayBuffer; non necessario per la PWA di base).
+  Cross-Origin-Opener-Policy: same-origin-allow-popups
+
+# Il service worker deve essere servito con questo header per essere
+# autorizzato a intercettare le richieste dell'intera origin.
+/sw.js
+  Service-Worker-Allowed: /
+
+# Manifest e icone: MIME type esplicito (alcuni CDN ne hanno bisogno)
+/manifest.webmanifest
+  Content-Type: application/manifest+json
+
+/icons/*
+  Cache-Control: public, max-age=31536000, immutable
