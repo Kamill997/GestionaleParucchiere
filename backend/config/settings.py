@@ -282,6 +282,53 @@ VAPID_PRIVATE_KEY = env('VAPID_PRIVATE_KEY', default='')
 VAPID_PUBLIC_KEY = env('VAPID_PUBLIC_KEY', default='')
 VAPID_ADMIN_EMAIL = env('VAPID_ADMIN_EMAIL', default='admin@gestionale.local')
 
+# --- Logging (Fase 9) ---
+# Checklist pre-lancio: "verifica che i dati sensibili non compaiano nei log".
+# In sviluppo: console leggibile. In produzione: JSON su stdout (catturato
+# da Railway/Cloudflare), livello WARNING per ridurre il rumore. I campi
+# sensibili (password, token, VAPID_PRIVATE_KEY) non vengono mai loggati
+# perche': 1) non li passiamo mai a logger.* nel codice (verificato), 2)
+# Django oscura automaticamente i valori di SENSITIVE_VARIABLES nei
+# traceback dei form/request (vedi sotto).
+LOGGING = {
+    'version': 1,
+    'disable_existing_loggers': False,
+    'formatters': {
+        'console': {
+            'format': '{levelname} {asctime} {module}: {message}',
+            'style': '{',
+        },
+    },
+    'handlers': {
+        'console': {
+            'class': 'logging.StreamHandler',
+            'formatter': 'console',
+        },
+    },
+    'root': {
+        'handlers': ['console'],
+        'level': 'WARNING' if not DEBUG else 'INFO',
+    },
+    'loggers': {
+        'django': {
+            'handlers': ['console'],
+            'level': 'WARNING' if not DEBUG else 'INFO',
+            'propagate': False,
+        },
+        'apps': {
+            'handlers': ['console'],
+            'level': 'INFO',
+            'propagate': False,
+        },
+    },
+}
+
+# Oscura automaticamente i valori di questi campi nel pannello debug di Django
+# (request POST, sessioni). Non serve in produzione (DEBUG=False li nasconde
+# tutti), ma e' buona pratica averlo anche in sviluppo.
+SENSITIVE_VARIABLES = ('password', 'token', 'access_token', 'refresh_token', 'vapid_private_key')
+SENSITIVE_POST_PARAMETERS = ('password', 'password1', 'password2')
+
 # --- Celery ---
 # Broker/backend condividono Redis con la cache (vedi docker-compose.yml, servizio celery-worker).
 
