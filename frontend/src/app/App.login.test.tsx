@@ -13,7 +13,10 @@ function mockFetchSequence() {
       const url = typeof input === 'string' ? input : input.toString()
 
       if (url.includes('/auth/csrf/')) {
-        return new Response(JSON.stringify({ detail: 'ok' }), { status: 200 })
+        return new Response(JSON.stringify({ detail: 'ok' }), {
+          status: 200,
+          headers: { 'Content-Type': 'application/json' },
+        })
       }
 
       if (url.includes('/auth/login/') && init?.method === 'POST') {

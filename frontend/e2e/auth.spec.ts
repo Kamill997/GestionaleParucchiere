@@ -58,8 +58,9 @@ test.describe('Login e redirect', () => {
     await page.getByLabel(/password/i).fill(ADMIN_PASSWORD)
     await page.getByRole('button', { name: /accedi/i }).click()
     await expect(page).toHaveURL('/')
-
-    await page.getByRole('button', { name: /esci/i }).click()
+    const esciBtn = page.getByRole('button', { name: /esci/i })
+    await expect(esciBtn).toBeVisible()
+    await esciBtn.click()
     await expect(page).toHaveURL(/\/login/)
 
     // Tentativo di tornare alla dashboard: deve reindirizzare di nuovo al login

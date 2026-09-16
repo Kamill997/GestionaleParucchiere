@@ -20,10 +20,10 @@ test.describe('Notification bell', () => {
   test('aprire il campanello mostra la lista notifiche o il messaggio vuoto', async ({ page }) => {
     await loginAdmin(page)
     await page.getByRole('button', { name: /notifiche/i }).click()
-    // O ci sono notifiche o c'e' il messaggio "Nessuna notifica."
-    const hasNotifiche = await page.getByText(/nessuna notifica/i).isVisible()
-    const hasItems = await page.locator('[role="button"]').count()
-    expect(hasNotifiche || hasItems > 0).toBeTruthy()
+    // Il pannello si apre mostrando l'intestazione e la lista (o il messaggio di stato)
+    await expect(
+      page.getByText(/nessuna notifica/i).or(page.locator('.max-h-96 button'))
+    ).toBeVisible()
   })
 })
 

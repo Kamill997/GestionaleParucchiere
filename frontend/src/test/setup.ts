@@ -3,6 +3,14 @@ import { afterEach, beforeEach, vi } from 'vitest'
 
 import { queryClient } from '@/app/providers'
 
+vi.mock('virtual:pwa-register/react', () => ({
+  useRegisterSW: () => ({
+    needRefresh: [false, vi.fn()],
+    offlineReady: [false, vi.fn()],
+    updateServiceWorker: vi.fn(),
+  }),
+}))
+
 // Nessun backend reale in ambiente Vitest: senza un mock, useCurrentUser()
 // farebbe un fetch di rete vero (fallirebbe in modo non deterministico).
 // Di default si simula un visitatore non autenticato (401 su /auth/me/),

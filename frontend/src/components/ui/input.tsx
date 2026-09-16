@@ -7,10 +7,11 @@ export interface InputProps extends InputHTMLAttributes<HTMLInputElement> {
 }
 
 export const Input = forwardRef<HTMLInputElement, InputProps>(
-  ({ className, invalid, ...props }, ref) => {
+  ({ className, invalid, type = 'text', ...props }, ref) => {
     return (
       <input
         ref={ref}
+        type={type}
         className={cn(
           'h-10 w-full rounded-md border border-border bg-surface px-3 text-sm text-ink placeholder:text-ink-faint',
           'transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-1',

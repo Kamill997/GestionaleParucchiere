@@ -101,7 +101,8 @@ class RefreshView(APIView):
 
 
 class LogoutView(APIView):
-    permission_classes = [permissions.IsAuthenticated]
+    authentication_classes = []
+    permission_classes = [permissions.AllowAny]
 
     def post(self, request):
         raw_refresh = request.COOKIES.get(settings.AUTH_COOKIE_REFRESH)
@@ -112,8 +113,16 @@ class LogoutView(APIView):
                 pass  # token gia' scaduto/invalido: nulla da revocare
 
         response = Response({'detail': 'Logout effettuato.'})
-        response.delete_cookie(settings.AUTH_COOKIE_ACCESS, path='/')
-        response.delete_cookie(settings.AUTH_COOKIE_REFRESH, path=settings.AUTH_COOKIE_REFRESH_PATH)
+        response.delete_cookie(
+            settings.AUTH_COOKIE_ACCESS,
+            path='/',
+            samesite=settings.AUTH_COOKIE_SAMESITE,
+        )
+        response.delete_cookie(
+            settings.AUTH_COOKIE_REFRESH,
+            path=settings.AUTH_COOKIE_REFRESH_PATH,
+            samesite=settings.AUTH_COOKIE_SAMESITE,
+        )
         return response
 
 
@@ -125,8 +134,8 @@ class CsrfCookieView(APIView):
     permission_classes = [permissions.AllowAny]
 
     def get(self, request):
-        get_token(request)
-        return Response({'detail': 'Cookie CSRF impostato.'})
+        token = get_token(request)
+        return Response({'csrfToken': token, 'detail': 'Cookie CSRF impostato.'})
 
 
 class MeView(generics.RetrieveAPIView):

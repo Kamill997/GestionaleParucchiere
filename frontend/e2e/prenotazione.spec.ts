@@ -43,8 +43,9 @@ test.describe('Flusso prenotazione self-service', () => {
 test.describe('Sidebar — voci per ruolo', () => {
   test('un cliente non vede Gestione prenotazioni nella sidebar', async ({ page }) => {
     await loginCliente(page)
-    await expect(page.getByRole('link', { name: /gestione prenotazioni/i })).not.toBeVisible()
-    await expect(page.getByRole('link', { name: /prenota/i })).toBeVisible()
-    await expect(page.getByRole('link', { name: /le mie prenotazioni/i })).toBeVisible()
+    const nav = page.locator('nav')
+    await expect(nav.getByRole('link', { name: /gestione prenotazioni/i })).not.toBeVisible()
+    await expect(nav.getByRole('link', { name: 'Prenota', exact: true })).toBeVisible()
+    await expect(nav.getByRole('link', { name: 'Le mie prenotazioni' })).toBeVisible()
   })
 })

@@ -181,6 +181,15 @@ class Command(BaseCommand):
         if creato:
             self.stdout.write(f'  ✓ admin@salone.demo / {PASSWORD_DEMO}')
 
+        # Admin per test E2E Playwright
+        admin_test, _ = User.objects.get_or_create(email='admin@test.local')
+        admin_test.first_name = 'Admin'
+        admin_test.last_name = 'Test'
+        admin_test.is_staff = True
+        admin_test.set_password('test-password-sicura-123')
+        admin_test.save()
+        admin_test.roles.set([admin_role])
+
         # ------------------------------------------------------------------
         # Impostazioni
         # ------------------------------------------------------------------
@@ -272,6 +281,24 @@ class Command(BaseCommand):
             )
             clienti_db.append(cliente)
         self.stdout.write(f'  ✓ {len(clienti_db)} clienti registrati — password: {PASSWORD_DEMO}')
+
+        # Cliente per test E2E Playwright
+        cli_test_user, _ = User.objects.get_or_create(email='cliente@test.local')
+        cli_test_user.first_name = 'Cliente'
+        cli_test_user.last_name = 'Test'
+        cli_test_user.set_password('test-password-sicura-123')
+        cli_test_user.save()
+        cli_test_user.roles.set([cli_role])
+        cli_test_obj, _ = Cliente.objects.get_or_create(
+            user=cli_test_user,
+            defaults={
+                'nome': 'Cliente Test',
+                'email': 'cliente@test.local',
+                'telefono': '3330000000',
+                'note_preferenze': 'Utente di test automatizzato Playwright',
+            },
+        )
+        clienti_db.append(cli_test_obj)
 
         # ------------------------------------------------------------------
         # Clienti ospiti

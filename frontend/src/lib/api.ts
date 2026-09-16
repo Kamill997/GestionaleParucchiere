@@ -18,6 +18,16 @@ function readCookie(name: string): string | null {
   return match ? decodeURIComponent(match[1]) : null
 }
 
+let inMemoryCsrfToken: string | null = null
+
+export function setCsrfToken(token: string | null) {
+  inMemoryCsrfToken = token
+}
+
+export function getCsrfToken(): string | null {
+  return inMemoryCsrfToken ?? readCookie('csrftoken')
+}
+
 /**
  * Wrapper fetch: sempre credentials:'include' (i token JWT sono in cookie
  * httpOnly, vedi backend/common/authentication.py), header X-CSRFToken
@@ -32,7 +42,7 @@ export async function apiFetch<T>(path: string, init: RequestInit = {}): Promise
     headers.set('Content-Type', 'application/json')
   }
   if (MUTATING_METHODS.has(method)) {
-    const csrfToken = readCookie('csrftoken')
+    const csrfToken = getCsrfToken()
     if (csrfToken) headers.set('X-CSRFToken', csrfToken)
   }
 

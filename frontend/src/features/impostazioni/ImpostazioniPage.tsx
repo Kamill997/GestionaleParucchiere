@@ -37,7 +37,7 @@ function RigaImpostazione({
   }
 
   return (
-    <tr className="border-b border-border last:border-b-0 hover:bg-surface-alt/60">
+    <tr className="group border-b border-border last:border-b-0 hover:bg-surface-alt/60">
       <td className="px-4 py-3 align-middle">
         <p className="text-sm font-medium text-ink">{impostazione.chiave}</p>
         <p className="text-xs text-ink-muted">{impostazione.descrizione}</p>

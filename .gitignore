@@ -4,6 +4,8 @@ frontend/dist/
 frontend/dist-ssr/
 frontend/*.local
 frontend/coverage/
+frontend/playwright-report/
+frontend/test-results/
 
 # --- Backend (Python/Django) ---
 backend/.venv/

@@ -1,4 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { useNavigate } from 'react-router-dom'
 
 import { ApiError } from '@/lib/api'
 
@@ -39,11 +40,14 @@ export function useLogin() {
 
 export function useLogout() {
   const queryClient = useQueryClient()
+  const navigate = useNavigate()
 
   return useMutation({
     mutationFn: logout,
-    onSuccess: () => {
+    onSettled: () => {
       queryClient.setQueryData(authQueryKey, null)
+      queryClient.clear()
+      navigate('/login', { replace: true })
     },
   })
 }

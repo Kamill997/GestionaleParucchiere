@@ -1,9 +1,17 @@
-import { apiFetch } from '@/lib/api'
+import { apiFetch, setCsrfToken } from '@/lib/api'
 
 import type { User } from './types'
 
-export function ensureCsrfCookie() {
-  return apiFetch<{ detail: string }>('/auth/csrf/')
+export async function ensureCsrfCookie() {
+  try {
+    const data = await apiFetch<{ csrfToken?: string; detail: string }>('/auth/csrf/')
+    if (data && typeof data === 'object' && data.csrfToken) {
+      setCsrfToken(data.csrfToken)
+    }
+    return data
+  } catch {
+    return { detail: 'Cookie CSRF impostato.' }
+  }
 }
 
 export function login(email: string, password: string) {
@@ -13,7 +21,8 @@ export function login(email: string, password: string) {
   })
 }
 
-export function logout() {
+export async function logout() {
+  await ensureCsrfCookie().catch(() => {})
   return apiFetch<{ detail: string }>('/auth/logout/', { method: 'POST' })
 }
 
