@@ -1,7 +1,7 @@
 import { useEffect } from 'react'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { useForm } from 'react-hook-form'
-import { Navigate, useLocation, useNavigate } from 'react-router-dom'
+import { Link, Navigate, useLocation, useNavigate } from 'react-router-dom'
 import { z } from 'zod'
 
 import { Button } from '@/components/ui/button'
@@ -58,6 +58,9 @@ export function LoginPage() {
   const credentialsAreInvalid =
     loginMutation.error instanceof ApiError && loginMutation.error.status === 401
 
+  const isRateLimited =
+    loginMutation.error instanceof ApiError && loginMutation.error.status === 429
+
   return (
     <div className="flex min-h-screen items-center justify-center bg-bg px-4">
       <div className="w-full max-w-sm rounded-lg border border-border bg-surface p-8 shadow-sm">
@@ -89,6 +92,14 @@ export function LoginPage() {
             {errors.password && (
               <p className="mt-1 text-sm text-danger">{errors.password.message}</p>
             )}
+            <div className="mt-1.5 text-right">
+              <Link
+                to="/password-dimenticata"
+                className="text-xs text-primary hover:underline"
+              >
+                Password dimenticata?
+              </Link>
+            </div>
           </div>
 
           {credentialsAreInvalid && (
@@ -97,10 +108,35 @@ export function LoginPage() {
             </p>
           )}
 
+          {isRateLimited && (
+            <p className="text-sm text-danger" role="alert">
+              Troppi tentativi di accesso non riusciti. Per motivi di sicurezza attendi prima di riprovare.
+            </p>
+          )}
+
           <Button type="submit" className="w-full" disabled={loginMutation.isPending}>
             {loginMutation.isPending ? 'Accesso in corso…' : 'Accedi'}
           </Button>
         </form>
+
+        <div className="mt-6 text-center text-sm">
+          <span className="text-ink-muted">Non hai un account? </span>
+          <Link to="/register" className="font-medium text-primary hover:underline">
+            Registrati
+          </Link>
+        </div>
+
+        <p className="mt-6 text-center text-xs text-ink-muted">
+          Utilizzando il servizio accetti i{' '}
+          <Link to="/termini" className="underline hover:text-ink">
+            Termini
+          </Link>{' '}
+          e la{' '}
+          <Link to="/privacy" className="underline hover:text-ink">
+            Privacy Policy
+          </Link>
+          .
+        </p>
       </div>
     </div>
   )

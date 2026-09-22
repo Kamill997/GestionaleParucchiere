@@ -7,6 +7,8 @@ from rest_framework.response import Response
 from apps.audit_log.models import AuditLog
 from apps.prenotazioni.services import sblocca_cliente
 
+from common.validators import validate_document_upload
+from rest_framework.exceptions import ValidationError
 from .import_export import (
     ESTENSIONI_CONSENTITE,
     MAX_FILE_SIZE_BYTES,
@@ -94,18 +96,12 @@ class ClienteViewSet(viewsets.ModelViewSet):
             )
 
         nome_file = file_obj.name
-        if not nome_file.lower().endswith(ESTENSIONI_CONSENTITE):
-            return Response(
-                {'detail': f'Formato non supportato: usa {" o ".join(ESTENSIONI_CONSENTITE)}.'},
-                status=status.HTTP_400_BAD_REQUEST,
-            )
-        if file_obj.size > MAX_FILE_SIZE_BYTES:
-            return Response(
-                {'detail': 'File troppo grande: limite 5MB.'}, status=status.HTTP_400_BAD_REQUEST
-            )
-
         try:
+            validate_document_upload(file_obj, max_size_mb=5)
             report = importa_clienti(file_obj, nome_file, request=request)
+        except ValidationError as e:
+            msg = e.detail[0] if isinstance(e.detail, list) else str(e.detail)
+            return Response({'detail': msg}, status=status.HTTP_400_BAD_REQUEST)
         except Exception:
             return Response(
                 {'detail': 'File non leggibile: verifica che sia un CSV/Excel valido.'},

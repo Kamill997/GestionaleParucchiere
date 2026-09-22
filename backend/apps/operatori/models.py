@@ -1,5 +1,6 @@
 from django.conf import settings
 from django.db import models
+from django.utils import timezone
 
 from common.models import UUIDModel
 
@@ -73,3 +74,55 @@ class Disponibilita(UUIDModel):
     def __str__(self):
         giorno = self.get_giorno_settimana_display()
         return f'{self.operatore} - {giorno} {self.ora_inizio}-{self.ora_fine}'
+
+
+class TipoEccezione(models.TextChoices):
+    FERIE = 'ferie', 'Ferie'
+    MALATTIA = 'malattia', 'Malattia'
+    PERMESSO = 'permesso', 'Permesso'
+    CHIUSURA = 'chiusura', 'Chiusura salone'
+
+
+class EccezioneDisponibilita(UUIDModel):
+    """Eccezioni alla disponibilità ordinaria:
+    - Se operatore è valorizzato: assenza/ferie/permesso di quel collaboratore.
+    - Se operatore è null: chiusura straordinaria dell'intero salone (festività, ferie aziendali, ecc.).
+    - Se ora_inizio e ora_fine sono null: copre l'intera giornata/periodo.
+    - Se ora_inizio e ora_fine sono valorizzati: copre solo quella fascia oraria specifica.
+    """
+
+    operatore = models.ForeignKey(
+        Operatore,
+        on_delete=models.CASCADE,
+        related_name='eccezioni',
+        null=True,
+        blank=True,
+        help_text="Lasciare vuoto se si tratta di una chiusura dell'intero salone.",
+    )
+    tipo = models.CharField(
+        max_length=20,
+        choices=TipoEccezione.choices,
+        default=TipoEccezione.FERIE,
+    )
+    data_inizio = models.DateField()
+    data_fine = models.DateField()
+    ora_inizio = models.TimeField(null=True, blank=True)
+    ora_fine = models.TimeField(null=True, blank=True)
+    motivo = models.CharField(max_length=255, blank=True)
+    creato_il = models.DateTimeField(default=timezone.now)
+
+    class Meta:
+        ordering = ['-data_inizio', 'ora_inizio']
+        verbose_name = 'Eccezione disponibilità'
+        verbose_name_plural = 'Eccezioni disponibilità'
+        constraints = [
+            models.CheckConstraint(
+                condition=models.Q(data_fine__gte=models.F('data_inizio')),
+                name='eccezione_data_fine_dopo_data_inizio',
+            ),
+        ]
+
+    def __str__(self):
+        soggetto = self.operatore.nome if self.operatore else 'Salone'
+        return f'{soggetto} - {self.get_tipo_display()} ({self.data_inizio} -> {self.data_fine})'
+

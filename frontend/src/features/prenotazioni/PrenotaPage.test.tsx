@@ -71,8 +71,8 @@ function mockFetchFlussoPrenotazione() {
       }
       if (url.includes('/slot-disponibili/')) {
         return jsonResponse([
-          { inizio: '2026-08-03T09:00:00+02:00', fine: '2026-08-03T09:30:00+02:00' },
-          { inizio: '2026-08-03T09:15:00+02:00', fine: '2026-08-03T09:45:00+02:00' },
+          { inizio: '2026-08-03T09:00:00+02:00', fine: '2026-08-03T09:30:00+02:00', disponibile: true },
+          { inizio: '2026-08-03T09:15:00+02:00', fine: '2026-08-03T09:45:00+02:00', disponibile: false },
         ])
       }
       if (url.includes('/prenotazioni/') && init?.method === 'POST') {
@@ -93,6 +93,29 @@ function mockFetchFlussoPrenotazione() {
         )
       }
 
+      if (url.includes('/lista-attesa/')) {
+        if (init?.method === 'POST') {
+          return jsonResponse(
+            {
+              id: 'wait1',
+              cliente: 'cli1',
+              cliente_nome: 'Mario',
+              servizio: 'serv1',
+              servizio_nome: 'Taglio',
+              operatore: 'op1',
+              operatore_nome: 'Giulia',
+              data: '2026-08-03',
+              ora_preferita: '09:15:00',
+              stato: 'in_attesa',
+              note: '',
+              creato_il: '2026-01-01T00:00:00Z',
+            },
+            201,
+          )
+        }
+        return jsonResponse({ count: 0, next: null, previous: null, results: [] })
+      }
+
       return jsonResponse(
         { detail: prenotazioneCreata ? 'ok' : 'not found' },
         prenotazioneCreata ? 200 : 404,
@@ -107,7 +130,7 @@ describe('Flusso di prenotazione', () => {
     mockFetchFlussoPrenotazione()
   })
 
-  it('seleziona servizio, operatore, data, slot e conferma', async () => {
+  it('seleziona servizio, operatore, data, slot e conferma (mostrando slot occupati che aprono modal lista attesa)', async () => {
     const user = userEvent.setup()
     render(<App />)
 
@@ -117,13 +140,49 @@ describe('Flusso di prenotazione', () => {
     await user.selectOptions(screen.getByLabelText(/operatore/i), 'op1')
     fireEvent.change(screen.getByLabelText(/giorno/i), { target: { value: '2026-08-03' } })
 
-    const slotButton = await screen.findByRole('button', { name: '09:00' })
+    // Slot 09:15 e' occupato
+    const occupiedSlot = await screen.findByRole('button', { name: /09:15.*occupato/i })
+    expect(occupiedSlot).toBeInTheDocument()
+
+    // Cliccando sullo slot occupato si apre la modal per la lista d'attesa
+    await user.click(occupiedSlot)
+    expect(await screen.findByText(/Iscriviti alla Lista d'Attesa/i)).toBeInTheDocument()
+
+    // Chiudi la modal
+    await user.click(screen.getByRole('button', { name: /annulla/i }))
+
+    // Slot 09:00 e' libero e cliccabile
+    const slotButton = screen.getByRole('button', { name: '09:00' })
+    expect(slotButton).not.toBeDisabled()
     await user.click(slotButton)
 
     await user.click(screen.getByRole('button', { name: /conferma prenotazione/i }))
 
     await waitFor(() => {
       expect(screen.getByText(/prenotazione confermata/i)).toBeInTheDocument()
+    })
+  })
+
+  it("permette di iscriversi alla lista d'attesa per uno slot occupato", async () => {
+    const user = userEvent.setup()
+    render(<App />)
+
+    await screen.findByText(/prenota un appuntamento/i)
+
+    await user.selectOptions(await screen.findByLabelText(/servizio/i), 'serv1')
+    await user.selectOptions(screen.getByLabelText(/operatore/i), 'op1')
+    fireEvent.change(screen.getByLabelText(/giorno/i), { target: { value: '2026-08-03' } })
+
+    const occupiedSlot = await screen.findByRole('button', { name: /09:15.*occupato/i })
+    await user.click(occupiedSlot)
+
+    expect(await screen.findByText(/Iscriviti alla Lista d'Attesa/i)).toBeInTheDocument()
+
+    // Conferma iscrizione alla lista d'attesa
+    await user.click(screen.getByRole('button', { name: /iscriviti alla lista/i }))
+
+    await waitFor(() => {
+      expect(screen.getByText(/sei in lista d'attesa/i)).toBeInTheDocument()
     })
   })
 })

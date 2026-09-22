@@ -1,4 +1,5 @@
 from datetime import date, datetime, time, timedelta
+from decimal import Decimal
 
 import pytest
 from django.db import IntegrityError, transaction
@@ -72,6 +73,34 @@ class TestSlotDisponibili:
         assert response.status_code == 200
         assert len(response.data) > 0
         assert 'inizio' in response.data[0] and 'fine' in response.data[0]
+        assert 'disponibile' in response.data[0]
+        assert response.data[0]['disponibile'] is True
+
+    def test_slot_occupato_restituito_con_disponibile_false(
+        self, api_client, cliente_utente, operatore, servizio, martedi_prossimo
+    ):
+        # Crea una prenotazione alle 10:00
+        Prenotazione.objects.create(
+            cliente=cliente_utente.cliente,
+            operatore=operatore,
+            servizio=servizio,
+            inizio=_dt(martedi_prossimo, time(10, 0)),
+            fine=_dt(martedi_prossimo, time(10, 30)),
+        )
+
+        response = api_client.get(
+            '/api/v1/slot-disponibili/',
+            {
+                'operatore': str(operatore.id),
+                'servizio': str(servizio.id),
+                'data': martedi_prossimo.isoformat(),
+            },
+        )
+        assert response.status_code == 200
+        slots = response.data
+        slot_10 = next((s for s in slots if '10:00' in s['inizio']), None)
+        assert slot_10 is not None
+        assert slot_10['disponibile'] is False
 
     def test_parametri_mancanti_400(self, api_client, cliente_utente):
         response = api_client.get('/api/v1/slot-disponibili/')
@@ -342,3 +371,141 @@ class TestModificaSenzaRipianificazione:
             HTTP_X_CSRFTOKEN=admin_utente.csrf_token,
         )
         assert response.status_code == 200, response.data
+
+
+class TestEsportazioneIcal:
+    def test_cliente_scarica_ics_propria_prenotazione(
+        self, api_client, cliente_utente, operatore, servizio, martedi_prossimo
+    ):
+        prenotazione = Prenotazione.objects.create(
+            cliente=cliente_utente.cliente,
+            operatore=operatore,
+            servizio=servizio,
+            inizio=_dt(martedi_prossimo, time(10, 0)),
+            fine=_dt(martedi_prossimo, time(10, 30)),
+            note='Prima volta in salone',
+        )
+
+        response = api_client.get(f'/api/v1/prenotazioni/{prenotazione.id}/ics/')
+        assert response.status_code == 200
+        assert 'text/calendar' in response['Content-Type']
+        assert f'attachment; filename="prenotazione-{prenotazione.id}.ics"' in response['Content-Disposition']
+
+        body = response.content.decode('utf-8')
+        assert 'BEGIN:VCALENDAR' in body
+        assert 'VERSION:2.0' in body
+        assert 'BEGIN:VEVENT' in body
+        assert f'UID:prenotazione-{prenotazione.id}@gestionaleparrucchiere.local' in body
+        assert 'SUMMARY:Taglio - Salone' in body
+        assert 'STATUS:CONFIRMED' in body
+        assert 'Prima volta in salone' in body
+        assert 'END:VEVENT' in body
+        assert 'END:VCALENDAR' in body
+
+    def test_scarica_ics_prenotazione_cancellata(
+        self, api_client, cliente_utente, operatore, servizio, martedi_prossimo
+    ):
+        prenotazione = Prenotazione.objects.create(
+            cliente=cliente_utente.cliente,
+            operatore=operatore,
+            servizio=servizio,
+            inizio=_dt(martedi_prossimo, time(10, 0)),
+            fine=_dt(martedi_prossimo, time(10, 30)),
+            stato=StatoPrenotazione.CANCELLATA,
+        )
+
+        response = api_client.get(f'/api/v1/prenotazioni/{prenotazione.id}/ics/')
+        assert response.status_code == 200
+        body = response.content.decode('utf-8')
+        assert 'STATUS:CANCELLED' in body
+
+    def test_cliente_non_puo_scaricare_ics_altrui(
+        self, api_client, cliente_utente, operatore, servizio, martedi_prossimo
+    ):
+        altro_cliente = Cliente.objects.create(
+            nome='Altro Cliente', email='altro-cli@example.com'
+        )
+        prenotazione_altrui = Prenotazione.objects.create(
+            cliente=altro_cliente,
+            operatore=operatore,
+            servizio=servizio,
+            inizio=_dt(martedi_prossimo, time(11, 0)),
+            fine=_dt(martedi_prossimo, time(11, 30)),
+        )
+
+        response = api_client.get(f'/api/v1/prenotazioni/{prenotazione_altrui.id}/ics/')
+        assert response.status_code == 404
+
+    def test_admin_puo_scaricare_ics_qualsiasi_prenotazione(
+        self, api_client, admin_utente, operatore, servizio, martedi_prossimo
+    ):
+        cliente = Cliente.objects.create(
+            nome='Cliente Per Admin', email='cli-per-admin@example.com'
+        )
+        prenotazione = Prenotazione.objects.create(
+            cliente=cliente,
+            operatore=operatore,
+            servizio=servizio,
+            inizio=_dt(martedi_prossimo, time(12, 0)),
+            fine=_dt(martedi_prossimo, time(12, 30)),
+        )
+
+        response = api_client.get(f'/api/v1/prenotazioni/{prenotazione.id}/ics/')
+        assert response.status_code == 200
+        assert 'text/calendar' in response['Content-Type']
+
+    def test_prenotazione_con_servizi_aggiuntivi(
+        self, api_client, cliente_utente, operatore, servizio, martedi_prossimo
+    ):
+        servizio_extra = Servizio.objects.create(
+            nome='Shampoo & Barba',
+            durata_minuti=20,
+            prezzo=Decimal('15.00'),
+            attivo=True,
+        )
+        inizio = _dt(martedi_prossimo, time(9, 0))
+        # servizio (30 min, €20.00) + servizio_extra (20 min, €15.00) = 50 min, €35.00
+        payload = {
+            'operatore': str(operatore.id),
+            'servizio': str(servizio.id),
+            'servizi_aggiuntivi': [str(servizio_extra.id)],
+            'inizio': inizio.isoformat(),
+        }
+
+        response = api_client.post(
+            '/api/v1/prenotazioni/',
+            payload,
+            HTTP_X_CSRFTOKEN=cliente_utente.csrf_token,
+        )
+        assert response.status_code == 201
+        data = response.json()
+        assert data['importo'] == '35.00'
+        assert data['durata_totale_minuti'] == 50
+        assert len(data['servizi_aggiuntivi']) == 1
+        assert data['servizi_aggiuntivi_dettaglio'][0]['nome'] == 'Shampoo & Barba'
+        fine_attesa = inizio + timedelta(minutes=50)
+        assert data['fine'] == fine_attesa.isoformat()
+
+    def test_slot_disponibili_con_servizi_aggiuntivi(
+        self, api_client, cliente_utente, operatore, servizio, martedi_prossimo
+    ):
+        servizio_extra = Servizio.objects.create(
+            nome='Colorazione',
+            durata_minuti=60,
+            prezzo=Decimal('45.00'),
+            attivo=True,
+        )
+        data_str = martedi_prossimo.strftime('%Y-%m-%d')
+        response = api_client.get(
+            f'/api/v1/slot-disponibili/?operatore={operatore.id}&servizio={servizio.id}&servizi_aggiuntivi={servizio_extra.id}&data={data_str}'
+        )
+        assert response.status_code == 200
+        slots = response.json()
+        assert len(slots) > 0
+        # Ogni slot deve avere durata 30 + 60 = 90 min (1 ora e 30)
+        primo = slots[0]
+        dt_inizio = datetime.fromisoformat(primo['inizio'])
+        dt_fine = datetime.fromisoformat(primo['fine'])
+        assert (dt_fine - dt_inizio) == timedelta(minutes=90)
+
+

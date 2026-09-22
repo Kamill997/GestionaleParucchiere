@@ -1,8 +1,11 @@
 from datetime import timedelta
 
+from django.utils import timezone
 from rest_framework import serializers
 
-from .models import Prenotazione, StatoPrenotazione, StatoPresenza
+from apps.servizi.models import Servizio
+
+from .models import Prenotazione, RichiestaListaAttesa, StatoListaAttesa, StatoPrenotazione, StatoPresenza
 from .services import puo_cancellare_liberamente, slot_e_disponibile
 
 STAFF_ROLES = ('Amministratore', 'Operatore')
@@ -18,6 +21,13 @@ class PrenotazioneSerializer(serializers.ModelSerializer):
     cliente_nome = serializers.CharField(source='cliente.nome', read_only=True)
     operatore_nome = serializers.CharField(source='operatore.nome', read_only=True)
     servizio_nome = serializers.CharField(source='servizio.nome', read_only=True)
+    servizi_aggiuntivi = serializers.PrimaryKeyRelatedField(
+        many=True,
+        queryset=Servizio.objects.filter(attivo=True),
+        required=False,
+    )
+    servizi_aggiuntivi_dettaglio = serializers.SerializerMethodField(read_only=True)
+    durata_totale_minuti = serializers.SerializerMethodField(read_only=True)
 
     class Meta:
         model = Prenotazione
@@ -29,6 +39,9 @@ class PrenotazioneSerializer(serializers.ModelSerializer):
             'operatore_nome',
             'servizio',
             'servizio_nome',
+            'servizi_aggiuntivi',
+            'servizi_aggiuntivi_dettaglio',
+            'durata_totale_minuti',
             'inizio',
             'fine',
             'stato',
@@ -50,6 +63,22 @@ class PrenotazioneSerializer(serializers.ModelSerializer):
             'importo': {'required': False},
         }
 
+    def get_servizi_aggiuntivi_dettaglio(self, obj):
+        return [
+            {
+                'id': str(s.id),
+                'nome': s.nome,
+                'prezzo': str(s.prezzo),
+                'durata_minuti': s.durata_minuti,
+            }
+            for s in obj.servizi_aggiuntivi.all()
+        ]
+
+    def get_durata_totale_minuti(self, obj):
+        tot = obj.servizio.durata_minuti if obj.servizio else 0
+        tot += sum(s.durata_minuti for s in obj.servizi_aggiuntivi.all())
+        return tot
+
     def validate(self, attrs):
         operatore = attrs.get('operatore') or getattr(self.instance, 'operatore', None)
         servizio = attrs.get('servizio') or getattr(self.instance, 'servizio', None)
@@ -62,6 +91,19 @@ class PrenotazioneSerializer(serializers.ModelSerializer):
         if ('stato_pagamento' in attrs or 'importo' in attrs) and not _e_staff(richiedente):
             raise serializers.ValidationError("Solo lo staff puo' modificare pagamento/importo.")
 
+        servizi_aggiuntivi = attrs.get('servizi_aggiuntivi')
+        if servizi_aggiuntivi is None and self.instance:
+            servizi_aggiuntivi = list(self.instance.servizi_aggiuntivi.all())
+        elif servizi_aggiuntivi is None:
+            servizi_aggiuntivi = []
+
+        durata_totale = (servizio.durata_minuti if servizio else 0) + sum(
+            s.durata_minuti for s in servizi_aggiuntivi
+        )
+        prezzo_totale = (servizio.prezzo if servizio else 0) + sum(
+            s.prezzo for s in servizi_aggiuntivi
+        )
+
         # I controlli attivo/slot/blocco si applicano solo quando si crea una
         # prenotazione nuova, o quando cambiano davvero operatore/servizio/
         # orario: altrimenti modificare solo la nota di una prenotazione gia'
@@ -72,6 +114,7 @@ class PrenotazioneSerializer(serializers.ModelSerializer):
             or 'operatore' in attrs
             or 'servizio' in attrs
             or 'inizio' in attrs
+            or 'servizi_aggiuntivi' in attrs
         )
 
         if sta_cambiando_pianificazione:
@@ -94,15 +137,27 @@ class PrenotazioneSerializer(serializers.ModelSerializer):
             # altrimenti puo' risultare in conflitto con se stessa (trovato in
             # fase di revisione).
             escludi_id = self.instance.id if self.instance else None
+            if (
+                self.instance is None
+                and not _e_staff(richiedente)
+                and inizio <= timezone.now()
+            ):
+                raise serializers.ValidationError(
+                    {'inizio': "Non è possibile prenotare un appuntamento per un orario già trascorso."}
+                )
             if not slot_e_disponibile(
-                operatore, servizio, inizio, escludi_prenotazione_id=escludi_id
+                operatore,
+                servizio,
+                inizio,
+                escludi_prenotazione_id=escludi_id,
+                durata_totale_minuti=durata_totale,
             ):
                 raise serializers.ValidationError(
                     {'inizio': "Slot non disponibile per l'operatore scelto."}
                 )
-            attrs['fine'] = inizio + timedelta(minutes=servizio.durata_minuti)
+            attrs['fine'] = inizio + timedelta(minutes=durata_totale)
             if self.instance is None and 'importo' not in attrs:
-                attrs['importo'] = servizio.prezzo
+                attrs['importo'] = prezzo_totale
 
         return attrs
 
@@ -142,9 +197,69 @@ class SegnaPresenzaSerializer(serializers.Serializer):
         return attrs
 
 
+class RichiestaListaAttesaSerializer(serializers.ModelSerializer):
+    cliente_nome = serializers.CharField(source='cliente.nome', read_only=True)
+    servizio_nome = serializers.CharField(source='servizio.nome', read_only=True)
+    operatore_nome = serializers.CharField(source='operatore.nome', read_only=True, allow_null=True)
+
+    class Meta:
+        model = RichiestaListaAttesa
+        fields = [
+            'id',
+            'cliente',
+            'cliente_nome',
+            'servizio',
+            'servizio_nome',
+            'operatore',
+            'operatore_nome',
+            'data',
+            'ora_preferita',
+            'stato',
+            'note',
+            'notificato_il',
+            'creato_il',
+        ]
+        read_only_fields = ['stato', 'notificato_il', 'creato_il']
+        extra_kwargs = {
+            'cliente': {'required': False},
+        }
+
+    def validate_data(self, value):
+        if value < timezone.localdate():
+            raise serializers.ValidationError("Non puoi inserirti in lista d'attesa per una data passata.")
+        return value
+
+    def validate(self, attrs):
+        cliente = attrs.get('cliente')
+        request = self.context.get('request')
+        target_cliente = cliente
+        if not target_cliente and request and hasattr(request.user, 'cliente'):
+            target_cliente = request.user.cliente
+
+        servizio = attrs.get('servizio') or getattr(self.instance, 'servizio', None)
+        data = attrs.get('data') or getattr(self.instance, 'data', None)
+
+        if target_cliente and servizio and data:
+            qs = RichiestaListaAttesa.objects.filter(
+                cliente=target_cliente,
+                servizio=servizio,
+                data=data,
+                stato__in=[StatoListaAttesa.IN_ATTESA, StatoListaAttesa.NOTIFICATO],
+            )
+            if self.instance:
+                qs = qs.exclude(pk=self.instance.pk)
+            if qs.exists():
+                raise serializers.ValidationError(
+                    "Hai già una richiesta attiva in lista d'attesa per questo servizio in questa data."
+                )
+
+        return attrs
+
+
 class SlotDisponibileSerializer(serializers.Serializer):
     inizio = serializers.DateTimeField()
     fine = serializers.DateTimeField()
+    disponibile = serializers.BooleanField(default=True)
 
 
 class ServizioTopSerializer(serializers.Serializer):
@@ -157,7 +272,7 @@ class KPIDashboardSerializer(serializers.Serializer):
     prenotazioni_settimana = serializers.IntegerField()
     servizio_piu_richiesto = ServizioTopSerializer(allow_null=True)
     tasso_occupazione_oggi = serializers.FloatField()
-    fatturato_settimana = serializers.CharField()
+    fatturato_settimana = serializers.CharField(allow_null=True, required=False)
     tasso_no_show = serializers.FloatField()
 
 
@@ -182,3 +297,31 @@ class ReportGuadagniSerializer(serializers.Serializer):
     per_operatore = GuadagnoRigaSerializer(many=True)
     top_clienti = GuadagnoRigaSerializer(many=True)
     clienti_vicini_al_blocco = ClienteVicinoBloccoSerializer(many=True)
+
+
+class AndamentoGiornoSerializer(serializers.Serializer):
+    data = serializers.CharField()
+    etichetta = serializers.CharField()
+    totale = serializers.FloatField()
+    appuntamenti = serializers.IntegerField()
+
+
+class CategoriaFatturatoSerializer(serializers.Serializer):
+    categoria = serializers.CharField()
+    totale = serializers.FloatField()
+    appuntamenti = serializers.IntegerField()
+    percentuale = serializers.FloatField()
+
+
+class OperatoreFatturatoSerializer(serializers.Serializer):
+    operatore = serializers.CharField()
+    totale = serializers.FloatField()
+    appuntamenti = serializers.IntegerField()
+
+
+class AndamentoProfittiSerializer(serializers.Serializer):
+    totale_periodo = serializers.FloatField()
+    media_giornaliera = serializers.FloatField()
+    giorni = AndamentoGiornoSerializer(many=True)
+    categorie = CategoriaFatturatoSerializer(many=True)
+    operatori = OperatoreFatturatoSerializer(many=True)

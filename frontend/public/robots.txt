@@ -1,0 +1,24 @@
+# robots.txt per Gestionale Salone PWA
+# Regole per crawler e motori di ricerca
+
+User-agent: *
+# Pagine pubbliche consentite
+Allow: /
+Allow: /login
+Allow: /privacy
+Allow: /termini
+Allow: /password-dimenticata
+Allow: /reset-password
+
+# Aree riservate non indicizzabili
+Disallow: /api/
+Disallow: /prenota
+Disallow: /le-mie-prenotazioni
+Disallow: /gestione-prenotazioni
+Disallow: /operatori
+Disallow: /clienti
+Disallow: /utenti
+Disallow: /impostazioni
+Disallow: /profilo
+
+Sitemap: https://salone.demo/sitemap.xml

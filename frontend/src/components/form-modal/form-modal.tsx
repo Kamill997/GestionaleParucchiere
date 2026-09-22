@@ -22,6 +22,7 @@ export interface CampoFormModal<T extends FieldValues> {
     | 'select'
     | 'checkbox-group'
     | 'datetime-local'
+    | 'file'
   options?: { value: string; label: string }[] // per type: 'select' | 'checkbox-group'
   placeholder?: string
 }
@@ -138,6 +139,23 @@ export function FormModal<T extends FieldValues>({
                           )
                         })}
                       </div>
+                    )}
+                  />
+                ) : field.type === 'file' ? (
+                  <Controller
+                    name={field.name as never}
+                    control={control}
+                    render={({ field: { onChange } }) => (
+                      <Input
+                        id={field.name}
+                        type="file"
+                        accept="image/*"
+                        invalid={!!errorMessage}
+                        onChange={(e) => {
+                          const file = e.target.files?.[0] || null
+                          onChange(file)
+                        }}
+                      />
                     )}
                   />
                 ) : (

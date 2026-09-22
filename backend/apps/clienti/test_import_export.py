@@ -218,3 +218,28 @@ class TestEsportazione:
         api_client.get('/api/v1/clienti/esporta/')
         log = AuditLog.objects.get(azione='clienti_esportati')
         assert log.user == admin_utente
+
+
+class TestValidazioneDocumentiImport:
+    def test_rifiuta_file_eseguibile_camuffato_da_csv(self, api_client, admin_utente):
+        malicious = SimpleUploadedFile('clienti.csv', b'MZ\x90\x00\x03\x00\x00\x00malicious-code', content_type='text/csv')
+        response = api_client.post(
+            '/api/v1/clienti/importa/',
+            {'file': malicious},
+            format='multipart',
+            HTTP_X_CSRFTOKEN=admin_utente.csrf_token,
+        )
+        assert response.status_code == 400
+        assert 'binari' in response.data['detail'] or 'non consentiti' in response.data['detail']
+
+    def test_rifiuta_file_xlsx_non_zip(self, api_client, admin_utente):
+        corrupted = SimpleUploadedFile('clienti.xlsx', b'Plain text disguised as xlsx', content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
+        response = api_client.post(
+            '/api/v1/clienti/importa/',
+            {'file': corrupted},
+            format='multipart',
+            HTTP_X_CSRFTOKEN=admin_utente.csrf_token,
+        )
+        assert response.status_code == 400
+        assert 'non è un archivio' in response.data['detail']
+

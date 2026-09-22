@@ -50,6 +50,7 @@ const CAMPI_BASE: CampoFormModal<UtenteAdminFormValues>[] = [
 
 export function UtentiPage() {
   const [pagina, setPagina] = useState(1)
+  const [filtroRuolo, setFiltroRuolo] = useState<'staff' | 'clienti' | 'tutti'>('staff')
   const [utenteInModifica, setUtenteInModifica] = useState<UtenteAdmin | null>(null)
   const [modaleAperto, setModaleAperto] = useState(false)
 
@@ -147,27 +148,80 @@ export function UtentiPage() {
     },
   ]
 
+  const utentiFiltrati = (data?.results ?? []).filter((u) => {
+    const eStaff = u.ruoli.some((r) => r === 'Amministratore' || r === 'Operatore')
+    if (filtroRuolo === 'staff') return eStaff
+    if (filtroRuolo === 'clienti') return !eStaff
+    return true
+  })
+
   return (
     <div>
       <PageHeader
         title="Utenti e ruoli"
-        description="Account con accesso al gestionale."
+        description="Gestione delle credenziali e dei permessi di accesso per il personale del salone."
         actions={
           <Button onClick={apriPerCreazione}>
             <Plus className="h-4 w-4" />
-            Nuovo utente
+            Nuovo utente staff
           </Button>
         }
       />
 
+      <div className="mb-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+        <div className="flex rounded-md border border-border bg-surface p-1">
+          <button
+            type="button"
+            onClick={() => setFiltroRuolo('staff')}
+            className={`px-3 py-1.5 text-xs font-medium rounded transition-colors ${
+              filtroRuolo === 'staff'
+                ? 'bg-primary text-white shadow-xs font-semibold'
+                : 'text-ink-muted hover:text-ink'
+            }`}
+          >
+            Personale & Staff ({ (data?.results ?? []).filter((u) => u.ruoli.some((r) => r === 'Amministratore' || r === 'Operatore')).length })
+          </button>
+          <button
+            type="button"
+            onClick={() => setFiltroRuolo('clienti')}
+            className={`px-3 py-1.5 text-xs font-medium rounded transition-colors ${
+              filtroRuolo === 'clienti'
+                ? 'bg-primary text-white shadow-xs font-semibold'
+                : 'text-ink-muted hover:text-ink'
+            }`}
+          >
+            Clienti registrati ({ (data?.results ?? []).filter((u) => !u.ruoli.some((r) => r === 'Amministratore' || r === 'Operatore')).length })
+          </button>
+          <button
+            type="button"
+            onClick={() => setFiltroRuolo('tutti')}
+            className={`px-3 py-1.5 text-xs font-medium rounded transition-colors ${
+              filtroRuolo === 'tutti'
+                ? 'bg-primary text-white shadow-xs font-semibold'
+                : 'text-ink-muted hover:text-ink'
+            }`}
+          >
+            Tutti ({ data?.results?.length ?? 0 })
+          </button>
+        </div>
+
+        <p className="text-xs text-ink-muted">
+          {filtroRuolo === 'staff'
+            ? 'Stai visualizzando solo gli account del personale con accesso gestionale.'
+            : filtroRuolo === 'clienti'
+            ? 'Questi utenti sono clienti che usano la PWA per prenotare. L\'anagrafica completa con note è in "Clienti".'
+            : 'Visualizzazione completa di tutti gli account nel database.'}
+        </p>
+      </div>
+
       <DataTable
         columns={columns}
-        data={data?.results ?? []}
+        data={utentiFiltrati}
         isLoading={isLoading}
-        emptyTitle="Nessun utente"
+        emptyTitle="Nessun utente trovato per questa selezione"
         pagination={
           data
-            ? { page: pagina, totalCount: data.count, pageSize: 100, onPageChange: setPagina }
+            ? { page: pagina, totalCount: utentiFiltrati.length, pageSize: 100, onPageChange: setPagina }
             : undefined
         }
       />

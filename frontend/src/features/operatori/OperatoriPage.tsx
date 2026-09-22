@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import type { ColumnDef } from '@tanstack/react-table'
-import { Pencil, Plus, Trash2 } from 'lucide-react'
+import { CalendarClock, CalendarOff, Palmtree, Pencil, Plus, Trash2 } from 'lucide-react'
 
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
@@ -13,8 +13,10 @@ import { RoleGuard } from '@/features/auth/RoleGuard'
 import { useUtentiAdmin } from '@/features/utenti/hooks'
 import { ApiError } from '@/lib/api'
 
+import { EccezioniOperatoreDialog } from './EccezioniOperatoreDialog'
 import { useAggiornaOperatore, useCreaOperatore, useEliminaOperatore, useOperatori } from './hooks'
 import { operatoreSchema, type OperatoreFormValues } from './schema'
+import { TurniOperatoreDialog } from './TurniOperatoreDialog'
 import type { Operatore } from './types'
 
 export function OperatoriPage() {
@@ -22,6 +24,9 @@ export function OperatoriPage() {
   const [operatoreInModifica, setOperatoreInModifica] = useState<Operatore | null>(null)
   const [modaleAperto, setModaleAperto] = useState(false)
   const [operatoreDaEliminare, setOperatoreDaEliminare] = useState<Operatore | null>(null)
+  const [operatorePerTurni, setOperatorePerTurni] = useState<Operatore | null>(null)
+  const [operatorePerEccezioni, setOperatorePerEccezioni] = useState<Operatore | null>(null)
+  const [dialogEccezioniAperto, setDialogEccezioniAperto] = useState(false)
 
   const { data, isLoading } = useOperatori(pagina)
   const { data: utenti } = useUtentiAdmin()
@@ -113,6 +118,27 @@ export function OperatoriPage() {
             <Button
               variant="ghost"
               size="icon"
+              aria-label="Ferie e assenze"
+              title="Gestisci ferie, permessi e assenze"
+              onClick={() => {
+                setOperatorePerEccezioni(row.original)
+                setDialogEccezioniAperto(true)
+              }}
+            >
+              <Palmtree className="h-4 w-4 text-warning" />
+            </Button>
+            <Button
+              variant="ghost"
+              size="icon"
+              aria-label="Gestisci turni"
+              title="Gestisci orari e turni"
+              onClick={() => setOperatorePerTurni(row.original)}
+            >
+              <CalendarClock className="h-4 w-4 text-primary" />
+            </Button>
+            <Button
+              variant="ghost"
+              size="icon"
               aria-label="Modifica"
               onClick={() => apriPerModifica(row.original)}
             >
@@ -139,10 +165,22 @@ export function OperatoriPage() {
         description="Staff del salone."
         actions={
           <RoleGuard roles={['Amministratore']}>
-            <Button onClick={apriPerCreazione}>
-              <Plus className="h-4 w-4" />
-              Nuovo operatore
-            </Button>
+            <div className="flex items-center gap-2">
+              <Button
+                variant="secondary"
+                onClick={() => {
+                  setOperatorePerEccezioni(null)
+                  setDialogEccezioniAperto(true)
+                }}
+              >
+                <CalendarOff className="h-4 w-4" />
+                Chiusure salone
+              </Button>
+              <Button onClick={apriPerCreazione}>
+                <Plus className="h-4 w-4" />
+                Nuovo operatore
+              </Button>
+            </div>
           </RoleGuard>
         }
       />
@@ -184,6 +222,18 @@ export function OperatoriPage() {
         destructive
         isLoading={eliminaMutation.isPending}
         onConfirm={confermaEliminazione}
+      />
+
+      <TurniOperatoreDialog
+        operatore={operatorePerTurni}
+        open={!!operatorePerTurni}
+        onOpenChange={(open) => !open && setOperatorePerTurni(null)}
+      />
+
+      <EccezioniOperatoreDialog
+        operatore={operatorePerEccezioni}
+        open={dialogEccezioniAperto}
+        onOpenChange={setDialogEccezioniAperto}
       />
     </div>
   )

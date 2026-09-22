@@ -1,7 +1,19 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 
-import { cancellaPrenotazione, fetchSlotDisponibili, prenotazioneApi, segnaPresenza } from './api'
-import type { PrenotazioneInput, StatoPagamento, StatoPresenza } from './types'
+import {
+  annullaRichiestaListaAttesa,
+  cancellaPrenotazione,
+  fetchSlotDisponibili,
+  listaAttesaApi,
+  prenotazioneApi,
+  segnaPresenza,
+} from './api'
+import type {
+  PrenotazioneInput,
+  RichiestaListaAttesaInput,
+  StatoPagamento,
+  StatoPresenza,
+} from './types'
 
 const CHIAVE_PRENOTAZIONI = ['prenotazioni'] as const
 
@@ -26,6 +38,24 @@ export function useTuttePrenotazioni(pagina = 1, stato?: string) {
   })
 }
 
+export function usePrenotazioniCalendario(dataDa: string, dataA: string, operatoreId?: string) {
+  const params = new URLSearchParams({
+    data_da: dataDa,
+    data_a: dataA,
+    page_size: '100',
+    ordering: 'inizio',
+  })
+  if (operatoreId && operatoreId !== 'tutti') {
+    params.set('operatore', operatoreId)
+  }
+
+  return useQuery({
+    queryKey: [...CHIAVE_PRENOTAZIONI, 'calendario', dataDa, dataA, operatoreId],
+    queryFn: () => prenotazioneApi.lista(`?${params.toString()}`),
+    enabled: !!(dataDa && dataA),
+  })
+}
+
 export function useProssimoAppuntamento() {
   return useQuery({
     queryKey: [...CHIAVE_PRENOTAZIONI, 'prossimo'],
@@ -39,10 +69,16 @@ export function useProssimoAppuntamento() {
   })
 }
 
-export function useSlotDisponibili(operatore: string, servizio: string, data: string) {
+export function useSlotDisponibili(
+  operatore: string,
+  servizio: string,
+  data: string,
+  serviziAggiuntivi?: string[]
+) {
+  const extraKey = (serviziAggiuntivi || []).slice().sort().join(',')
   return useQuery({
-    queryKey: ['slot-disponibili', operatore, servizio, data],
-    queryFn: () => fetchSlotDisponibili(operatore, servizio, data),
+    queryKey: ['slot-disponibili', operatore, servizio, data, extraKey],
+    queryFn: () => fetchSlotDisponibili(operatore, servizio, data, serviziAggiuntivi),
     enabled: !!(operatore && servizio && data),
   })
 }
@@ -80,3 +116,32 @@ export function useAggiornaPagamento() {
     onSuccess: () => queryClient.invalidateQueries({ queryKey: CHIAVE_PRENOTAZIONI }),
   })
 }
+
+const CHIAVE_LISTA_ATTESA = ['lista-attesa'] as const
+
+export function useListaAttesa(pagina = 1, stato?: string) {
+  const params = new URLSearchParams({ page: String(pagina), ordering: '-creato_il' })
+  if (stato) params.set('stato', stato)
+
+  return useQuery({
+    queryKey: [...CHIAVE_LISTA_ATTESA, pagina, stato],
+    queryFn: () => listaAttesaApi.lista(`?${params.toString()}`),
+  })
+}
+
+export function useIscrivitiListaAttesa() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: (dati: RichiestaListaAttesaInput) => listaAttesaApi.crea(dati),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: CHIAVE_LISTA_ATTESA }),
+  })
+}
+
+export function useAnnullaRichiestaListaAttesa() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: (id: string) => annullaRichiestaListaAttesa(id),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: CHIAVE_LISTA_ATTESA }),
+  })
+}
+

@@ -1,7 +1,10 @@
 import { Link } from 'react-router-dom'
+import { Download, ExternalLink } from 'lucide-react'
 
 import { Button } from '@/components/ui/button'
+import { useToast } from '@/components/ui/toast'
 import { useCurrentUser } from '@/features/auth/hooks'
+import { generaGoogleCalendarUrl, scaricaFileIcs } from '@/features/prenotazioni/calendarUtils'
 import { useProssimoAppuntamento } from '@/features/prenotazioni/hooks'
 
 import { GuadagniSection } from './GuadagniSection'
@@ -23,31 +26,56 @@ function DashboardStaff() {
   if (!kpi) return null
 
   return (
-    <div>
+    <div className="space-y-6">
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        <KpiCard etichetta="Prenotazioni oggi" valore={String(kpi.prenotazioni_oggi)} />
-        <KpiCard etichetta="Prenotazioni (7 giorni)" valore={String(kpi.prenotazioni_settimana)} />
         <KpiCard
-          etichetta="Servizio più richiesto"
+          etichetta={eAmministratore ? 'Prenotazioni oggi' : 'I miei appuntamenti oggi'}
+          valore={String(kpi.prenotazioni_oggi)}
+        />
+        <KpiCard
+          etichetta={eAmministratore ? 'Prenotazioni (7 giorni)' : 'I miei appuntamenti (7 giorni)'}
+          valore={String(kpi.prenotazioni_settimana)}
+        />
+        <KpiCard
+          etichetta={eAmministratore ? 'Servizio più richiesto' : 'Il mio servizio più richiesto'}
           valore={kpi.servizio_piu_richiesto?.nome ?? '—'}
           dettaglio={
             kpi.servizio_piu_richiesto
-              ? `${kpi.servizio_piu_richiesto.conteggio} prenotazioni`
+              ? `${kpi.servizio_piu_richiesto.conteggio} appuntamenti`
               : undefined
           }
         />
-        <KpiCard etichetta="Occupazione oggi" valore={`${kpi.tasso_occupazione_oggi}%`} />
         <KpiCard
-          etichetta="Fatturato (7 giorni)"
-          valore={`€ ${kpi.fatturato_settimana}`}
-          dettaglio="Solo prenotazioni pagate"
+          etichetta={eAmministratore ? 'Occupazione oggi' : 'La mia occupazione oggi'}
+          valore={`${kpi.tasso_occupazione_oggi}%`}
         />
-        <KpiCard
-          etichetta="Tasso no-show"
-          valore={`${kpi.tasso_no_show}%`}
-          dettaglio="Appuntamenti passati"
-        />
+        {eAmministratore && kpi.fatturato_settimana && (
+          <KpiCard
+            etichetta="Fatturato (7 giorni)"
+            valore={`€ ${kpi.fatturato_settimana}`}
+            dettaglio="Solo prenotazioni pagate"
+          />
+        )}
+        {eAmministratore && (
+          <KpiCard
+            etichetta="Tasso no-show"
+            valore={`${kpi.tasso_no_show}%`}
+            dettaglio="Appuntamenti passati"
+          />
+        )}
       </div>
+
+      {!eAmministratore && (
+        <div className="rounded-lg border border-border bg-surface p-5 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+          <div>
+            <h2 className="font-display text-base font-semibold text-ink">La tua agenda di lavoro</h2>
+            <p className="text-xs text-ink-muted">Visualizza i tuoi appuntamenti dettagliati sul calendario interattivo.</p>
+          </div>
+          <Button asChild variant="primary">
+            <Link to="/gestione-prenotazioni">Apri la mia agenda</Link>
+          </Button>
+        </div>
+      )}
 
       {/* docs/08-pagamenti.md: "Dashboard guadagni (lato Amministratore)" -
           esplicitamente riservata ad Amministratore, a differenza della
@@ -59,6 +87,7 @@ function DashboardStaff() {
 
 function DashboardCliente() {
   const { data: prossimo, isLoading } = useProssimoAppuntamento()
+  const { showToast } = useToast()
 
   if (isLoading) return <p className="text-sm text-ink-muted">Caricamento…</p>
 
@@ -74,13 +103,55 @@ function DashboardCliente() {
   }
 
   return (
-    <div className="rounded-lg border border-border bg-surface p-4">
-      <p className="text-xs font-medium uppercase tracking-wide text-ink-muted">
-        Prossimo appuntamento
-      </p>
-      <p className="mt-1 font-display text-xl font-semibold text-ink">
-        {formattaData(prossimo.inizio)}
-      </p>
+    <div className="rounded-lg border border-border bg-surface p-4 sm:p-5">
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+        <div>
+          <p className="text-xs font-medium uppercase tracking-wide text-ink-muted">
+            Prossimo appuntamento
+          </p>
+          <p className="mt-1 font-display text-xl font-semibold text-ink">
+            {formattaData(prossimo.inizio)}
+          </p>
+          <p className="text-sm text-ink-muted mt-0.5">
+            {prossimo.servizio_nome} con {prossimo.operatore_nome}
+          </p>
+        </div>
+
+        <div className="flex flex-wrap items-center gap-2">
+          <Button
+            variant="secondary"
+            size="sm"
+            onClick={async () => {
+              try {
+                await scaricaFileIcs(prossimo.id)
+              } catch {
+                showToast('Impossibile scaricare il file calendario', 'error')
+              }
+            }}
+            title="Scarica file iCal (.ics)"
+            className="flex items-center gap-1.5"
+          >
+            <Download className="h-3.5 w-3.5" />
+            <span>iCal (.ics)</span>
+          </Button>
+          <Button
+            variant="secondary"
+            size="sm"
+            asChild
+            title="Aggiungi a Google Calendar"
+            className="flex items-center gap-1.5"
+          >
+            <a
+              href={generaGoogleCalendarUrl(prossimo)}
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              <ExternalLink className="h-3.5 w-3.5 text-primary" />
+              <span>Google Calendar</span>
+            </a>
+          </Button>
+        </div>
+      </div>
     </div>
   )
 }

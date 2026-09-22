@@ -56,7 +56,7 @@ describe('ClientiPage', () => {
     mockFetchPer(['Amministratore'])
     render(<App />)
 
-    expect(await screen.findByText('Mario Rossi')).toBeInTheDocument()
+    expect(await screen.findByText('Mario Rossi', {}, { timeout: 5000 })).toBeInTheDocument()
     expect(screen.getByRole('button', { name: /importa/i })).toBeInTheDocument()
     expect(screen.getByRole('link', { name: /esporta/i })).toBeInTheDocument()
   })

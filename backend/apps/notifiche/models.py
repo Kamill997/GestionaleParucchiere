@@ -15,6 +15,7 @@ class TipoNotifica(models.TextChoices):
     SOGLIA_NO_SHOW_RAGGIUNTA = 'soglia_no_show_raggiunta', 'Soglia no-show raggiunta'
     CLIENTE_BLOCCATO = 'cliente_bloccato', 'Cliente bloccato'
     CLIENTE_SBLOCCATO = 'cliente_sbloccato', 'Cliente sbloccato'
+    DISPONIBILITA_LISTA_ATTESA = 'disponibilita_lista_attesa', "Posto disponibile dalla lista d'attesa"
 
 
 class Notifica(UUIDModel):

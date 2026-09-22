@@ -35,6 +35,14 @@ class CookieJWTAuthentication(JWTAuthentication):
             return None
 
         user = self.get_user(validated_token)
+
+        # Blocco 6: Se l'utente ha revocato i propri token globalmente,
+        # rifiuta token emessi prima della revoca
+        if user.tokens_revoked_at:
+            token_iat = validated_token.get('iat')
+            if token_iat and token_iat < user.tokens_revoked_at.timestamp():
+                return None
+
         self._enforce_csrf(request)
         return user, validated_token
 

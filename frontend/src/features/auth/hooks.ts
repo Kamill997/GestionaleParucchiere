@@ -3,7 +3,22 @@ import { useNavigate } from 'react-router-dom'
 
 import { ApiError } from '@/lib/api'
 
-import { ensureCsrfCookie, fetchMe, login, logout } from './api'
+import {
+  aggiornaProfilo,
+  cambiaPassword,
+  confermaResetPassword,
+  ensureCsrfCookie,
+  fetchMe,
+  login,
+  logout,
+  register,
+  type RegisterPayload,
+  richiediResetPassword,
+  fetchSessioni,
+  revocaSessione,
+  revocaAltreSessioni,
+  revocaTutteSessioni,
+} from './api'
 
 export const authQueryKey = ['auth', 'me'] as const
 
@@ -38,6 +53,20 @@ export function useLogin() {
   })
 }
 
+export function useRegister() {
+  const queryClient = useQueryClient()
+
+  return useMutation({
+    mutationFn: async (payload: RegisterPayload) => {
+      await ensureCsrfCookie()
+      return register(payload)
+    },
+    onSuccess: (user) => {
+      queryClient.setQueryData(authQueryKey, user)
+    },
+  })
+}
+
 export function useLogout() {
   const queryClient = useQueryClient()
   const navigate = useNavigate()
@@ -51,3 +80,75 @@ export function useLogout() {
     },
   })
 }
+
+export function useAggiornaProfilo() {
+  const queryClient = useQueryClient()
+
+  return useMutation({
+    mutationFn: aggiornaProfilo,
+    onSuccess: (user) => {
+      queryClient.setQueryData(authQueryKey, user)
+    },
+  })
+}
+
+export function useCambiaPassword() {
+  return useMutation({
+    mutationFn: cambiaPassword,
+  })
+}
+
+export function useRichiediResetPassword() {
+  return useMutation({
+    mutationFn: richiediResetPassword,
+  })
+}
+
+export function useConfermaResetPassword() {
+  return useMutation({
+    mutationFn: confermaResetPassword,
+  })
+}
+
+export const sessioniQueryKey = ['auth', 'sessioni'] as const
+
+export function useSessioniUtente() {
+  return useQuery({
+    queryKey: sessioniQueryKey,
+    queryFn: fetchSessioni,
+  })
+}
+
+export function useRevocaSessione() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: revocaSessione,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: sessioniQueryKey })
+    },
+  })
+}
+
+export function useRevocaAltreSessioni() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: revocaAltreSessioni,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: sessioniQueryKey })
+    },
+  })
+}
+
+export function useRevocaTutteSessioni() {
+  const queryClient = useQueryClient()
+  const navigate = useNavigate()
+  return useMutation({
+    mutationFn: revocaTutteSessioni,
+    onSettled: () => {
+      queryClient.setQueryData(authQueryKey, null)
+      queryClient.clear()
+      navigate('/login', { replace: true })
+    },
+  })
+}
+

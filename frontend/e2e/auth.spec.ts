@@ -67,4 +67,17 @@ test.describe('Login e redirect', () => {
     await page.goto('/')
     await expect(page).toHaveURL(/\/login/)
   })
+
+  test('profilo mostra la gestione sessioni e il dispositivo attuale', async ({ page }) => {
+    await page.goto('/login')
+    await page.getByLabel(/email/i).fill(ADMIN_EMAIL)
+    await page.getByLabel(/password/i).fill(ADMIN_PASSWORD)
+    await page.getByRole('button', { name: /accedi/i }).click()
+    await expect(page).toHaveURL('/')
+
+    await page.goto('/profilo')
+    await expect(page.getByRole('heading', { name: /il mio profilo/i })).toBeVisible()
+    await expect(page.getByRole('heading', { name: /dispositivi e sessioni attive/i })).toBeVisible()
+    await expect(page.getByText(/dispositivo attuale/i)).toBeVisible()
+  })
 })

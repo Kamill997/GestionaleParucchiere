@@ -114,6 +114,7 @@ MIDDLEWARE = [
     'django.contrib.auth.middleware.AuthenticationMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
+    'common.middleware.ContentSecurityPolicyMiddleware',
 ]
 
 ROOT_URLCONF = 'config.urls'
@@ -193,6 +194,9 @@ REST_FRAMEWORK = {
     'DEFAULT_THROTTLE_RATES': {
         'user': env('THROTTLE_USER_RATE', default='10000/hour' if DEBUG else '1000/hour'),
         'anon': env('THROTTLE_ANON_RATE', default='10000/hour' if DEBUG else '100/hour'),
+        'login': env('THROTTLE_LOGIN_RATE', default='10000/hour' if DEBUG else '5/min'),
+        'password_reset': env('THROTTLE_PASSWORD_RESET_RATE', default='10000/hour' if DEBUG else '3/min'),
+        'register': env('THROTTLE_REGISTER_RATE', default='10000/hour' if DEBUG else '10/hour'),
     },
 }
 
@@ -229,11 +233,25 @@ AUTH_COOKIE_SECURE = (
 AUTH_COOKIE_SAMESITE = 'Lax'
 
 
-# --- CORS ---
+# --- CORS & CSRF ---
 # Origini del frontend Vite (dev) + eventuali domini di produzione via env.
-CORS_ALLOWED_ORIGINS = env.list('DJANGO_CORS_ALLOWED_ORIGINS', default=['http://localhost:5173'])
+CORS_ALLOWED_ORIGINS = env.list(
+    'DJANGO_CORS_ALLOWED_ORIGINS',
+    default=['http://localhost:5173', 'http://127.0.0.1:5173'],
+)
 # Necessario per i cookie httpOnly dei token JWT (vedi docs/02-backend.md).
 CORS_ALLOW_CREDENTIALS = True
+
+# Origini fidate per il controllo CSRF (Django 4+ confronta l'header HTTP Origin)
+CSRF_TRUSTED_ORIGINS = env.list(
+    'DJANGO_CSRF_TRUSTED_ORIGINS',
+    default=[
+        'http://localhost:5173',
+        'http://127.0.0.1:5173',
+        'http://localhost:8000',
+        'http://127.0.0.1:8000',
+    ],
+)
 
 
 # --- Cache (Redis) ---
@@ -270,11 +288,17 @@ if 'pytest' in sys.modules:
 
 
 # --- Email (apps.notifiche) ---
-# Console backend in sviluppo (stampa le email nel log invece di inviarle
-# davvero): non serve un provider SMTP reale per costruire/testare il
-# modulo Notifiche. Swappabile via env per produzione senza toccare codice.
+# In sviluppo il default è console.EmailBackend (stampa nei log). In produzione o configurando
+# le variabili SMTP in .env (es. Gmail, Brevo, SendGrid), invia vere email ai destinatari.
 EMAIL_BACKEND = env('EMAIL_BACKEND', default='django.core.mail.backends.console.EmailBackend')
 DEFAULT_FROM_EMAIL = env('DEFAULT_FROM_EMAIL', default='no-reply@gestionale-salone.local')
+EMAIL_HOST = env('EMAIL_HOST', default='smtp.gmail.com')
+EMAIL_PORT = env.int('EMAIL_PORT', default=587)
+EMAIL_USE_TLS = env.bool('EMAIL_USE_TLS', default=True)
+EMAIL_USE_SSL = env.bool('EMAIL_USE_SSL', default=False)
+EMAIL_HOST_USER = env('EMAIL_HOST_USER', default='')
+EMAIL_HOST_PASSWORD = env('EMAIL_HOST_PASSWORD', default='')
+EMAIL_TIMEOUT = env.int('EMAIL_TIMEOUT', default=10)
 
 
 # --- VAPID (notifiche push PWA, docs/04-pwa-checklist.md) ---

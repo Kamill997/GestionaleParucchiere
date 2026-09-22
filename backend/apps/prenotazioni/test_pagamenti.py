@@ -10,7 +10,7 @@ from apps.servizi.models import Servizio
 from apps.settings_app.models import Impostazione
 from apps.users.models import User
 
-from .models import Prenotazione, StatoPagamento, StatoPresenza
+from .models import Prenotazione, StatoPagamento, StatoPrenotazione, StatoPresenza
 from .services import sblocca_cliente, segna_presenza
 
 pytestmark = pytest.mark.django_db
@@ -64,6 +64,38 @@ class TestSegnaPresenza:
         segna_presenza(prenotazione_passata, StatoPresenza.PRESENTE)
         prenotazione_passata.cliente.refresh_from_db()
         assert prenotazione_passata.cliente.contatore_no_show == 0
+
+    def test_presente_avanza_stato_a_completata(self, prenotazione_passata):
+        """Segnare 'presente' su una prenotazione confermata deve farla
+        avanzare a 'completata', cosi' lo staff ha un riscontro chiaro."""
+        assert prenotazione_passata.stato == StatoPrenotazione.CONFERMATA
+        segna_presenza(prenotazione_passata, StatoPresenza.PRESENTE)
+        prenotazione_passata.refresh_from_db()
+        assert prenotazione_passata.stato == StatoPrenotazione.COMPLETATA
+        assert prenotazione_passata.stato_presenza == StatoPresenza.PRESENTE
+
+    def test_presente_non_sovrascrive_stato_gia_completata(self):
+        """Se la prenotazione e' gia' completata, segnare presente di nuovo
+        non deve cambiare lo stato (e' un'azione idempotente)."""
+        op_user = User.objects.create_user(email='op-idem@example.com', password='x')
+        operatore = Operatore.objects.create(user=op_user, nome='Op Idem')
+        cliente = Cliente.objects.create(nome='Cli Idem', email='cli-idem@example.com')
+        servizio = Servizio.objects.create(
+            nome='Taglio', categoria='Taglio', durata_minuti=30, prezzo='25.00'
+        )
+        inizio = timezone.now() - timedelta(days=1)
+        prenotazione = Prenotazione.objects.create(
+            cliente=cliente,
+            operatore=operatore,
+            servizio=servizio,
+            inizio=inizio,
+            fine=inizio + timedelta(minutes=30),
+            stato=StatoPrenotazione.COMPLETATA,
+            stato_presenza=StatoPresenza.PRESENTE,
+        )
+        segna_presenza(prenotazione, StatoPresenza.PRESENTE)
+        prenotazione.refresh_from_db()
+        assert prenotazione.stato == StatoPrenotazione.COMPLETATA
 
     def test_non_presente_incrementa_il_contatore(self, prenotazione_passata):
         segna_presenza(prenotazione_passata, StatoPresenza.NON_PRESENTE)

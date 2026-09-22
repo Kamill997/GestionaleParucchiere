@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import type { ColumnDef } from '@tanstack/react-table'
-import { Pencil, Plus, Trash2 } from 'lucide-react'
+import { Pencil, Plus, Scissors, Trash2 } from 'lucide-react'
 
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
@@ -29,6 +29,7 @@ const CAMPI_FORM: CampoFormModal<ServizioFormValues>[] = [
   { name: 'descrizione', label: 'Descrizione', type: 'textarea' },
   { name: 'durata_minuti', label: 'Durata (minuti)', type: 'number' },
   { name: 'prezzo', label: 'Prezzo (€)', type: 'number' },
+  { name: 'foto', label: 'Foto del Servizio', type: 'file' },
 ]
 
 export function ServiziPage() {
@@ -83,6 +84,24 @@ export function ServiziPage() {
   }
 
   const columns: ColumnDef<Servizio, unknown>[] = [
+    {
+      accessorKey: 'foto',
+      header: '',
+      cell: ({ row }) => {
+        const foto = row.original.foto
+        return foto ? (
+          <img
+            src={foto}
+            alt={row.original.nome}
+            className="h-10 w-10 rounded-md object-cover border border-border"
+          />
+        ) : (
+          <div className="flex h-10 w-10 items-center justify-center rounded-md bg-surface-alt text-ink-muted border border-border">
+            <Scissors className="h-4 w-4" />
+          </div>
+        )
+      },
+    },
     { accessorKey: 'nome', header: 'Nome' },
     { accessorKey: 'categoria', header: 'Categoria' },
     {

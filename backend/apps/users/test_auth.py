@@ -54,6 +54,26 @@ class TestRegistrazione:
         )
         assert response.status_code == 400
 
+    def test_registrazione_con_telefono_e_auto_login(self, api_client):
+        response = api_client.post(
+            '/api/v1/auth/register/',
+            {
+                'email': 'nuovocliente@example.com',
+                'password': 'Password-sicura-12345',
+                'nome': 'Giulia',
+                'cognome': 'Rossi',
+                'telefono': '3331122334',
+            },
+        )
+        assert response.status_code == 201
+        assert 'access_token' in response.cookies
+        assert 'refresh_token' in response.cookies
+        user = User.objects.get(email='nuovocliente@example.com')
+        cliente = Cliente.objects.get(user=user)
+        assert cliente.telefono == '3331122334'
+        assert cliente.nome == 'Giulia Rossi'
+
+
 
 class TestLoginELogout:
     def test_login_imposta_cookie_httponly_e_niente_token_nel_body(self, api_client):
@@ -171,3 +191,217 @@ class TestGuardRBAC:
 
         response = api_client.get('/api/v1/admin/utenti/')
         assert response.status_code == 200
+
+
+class TestProfiloECambioPassword:
+    def test_aggiornamento_profilo_e_sincronizzazione_cliente(self, api_client):
+        user = User.objects.create_user(
+            email='profilo@example.com',
+            password='una-password-robusta-123',
+            first_name='Luigi',
+            last_name='Verdi',
+        )
+        Cliente.objects.create(user=user, nome='Luigi Verdi', email=user.email, telefono='111')
+
+        api_client.post(
+            '/api/v1/auth/login/',
+            {'email': 'profilo@example.com', 'password': 'una-password-robusta-123'},
+        )
+        csrf = _get_csrf_token(api_client)
+
+        response = api_client.patch(
+            '/api/v1/auth/me/',
+            {'nome': 'Luigi Mario', 'cognome': 'Verdi Rossi', 'telefono': '333444555'},
+            HTTP_X_CSRFTOKEN=csrf,
+        )
+        assert response.status_code == 200
+        assert response.data['nome'] == 'Luigi Mario'
+        assert response.data['cognome'] == 'Verdi Rossi'
+        assert response.data['telefono'] == '333444555'
+
+        user.refresh_from_db()
+        assert user.first_name == 'Luigi Mario'
+        assert user.cliente.nome == 'Luigi Mario Verdi Rossi'
+        assert user.cliente.telefono == '333444555'
+
+    def test_cambio_password_con_password_attuale_corretta(self, api_client):
+        user = User.objects.create_user(
+            email='cambiopass@example.com', password='vecchia-password-sicura-123'
+        )
+        api_client.post(
+            '/api/v1/auth/login/',
+            {'email': 'cambiopass@example.com', 'password': 'vecchia-password-sicura-123'},
+        )
+        csrf = _get_csrf_token(api_client)
+
+        response = api_client.post(
+            '/api/v1/auth/change-password/',
+            {
+                'vecchia_password': 'vecchia-password-sicura-123',
+                'nuova_password': 'nuova-password-robusta-456',
+            },
+            HTTP_X_CSRFTOKEN=csrf,
+        )
+        assert response.status_code == 200
+        user.refresh_from_db()
+        assert user.check_password('nuova-password-robusta-456')
+
+    def test_cambio_password_rifiuta_password_attuale_errata(self, api_client):
+        user = User.objects.create_user(
+            email='cambiopasserr@example.com', password='vecchia-password-sicura-123'
+        )
+        api_client.post(
+            '/api/v1/auth/login/',
+            {'email': 'cambiopasserr@example.com', 'password': 'vecchia-password-sicura-123'},
+        )
+        csrf = _get_csrf_token(api_client)
+
+        response = api_client.post(
+            '/api/v1/auth/change-password/',
+            {
+                'vecchia_password': 'password-sbagliata',
+                'nuova_password': 'nuova-password-robusta-456',
+            },
+            HTTP_X_CSRFTOKEN=csrf,
+        )
+        assert response.status_code == 400
+        assert 'vecchia_password' in response.data
+
+
+class TestResetPassword:
+    def test_flusso_completo_reset_password(self, api_client, mailoutbox):
+        user = User.objects.create_user(
+            email='dimenticato@example.com', password='password-originale-123'
+        )
+        csrf = _get_csrf_token(api_client)
+
+        # 1. Richiesta reset
+        response = api_client.post(
+            '/api/v1/auth/password-reset/',
+            {'email': 'dimenticato@example.com'},
+            HTTP_X_CSRFTOKEN=csrf,
+        )
+        assert response.status_code == 200
+        assert len(mailoutbox) == 1
+        assert 'Reimposta la tua password' in mailoutbox[0].subject
+        email_body = mailoutbox[0].body
+        assert 'uid=' in email_body
+        assert 'token=' in email_body
+
+        # Estrai uid e token dal corpo email
+        import re
+
+        match = re.search(r'uid=([^&\s]+)&token=([^&\s]+)', email_body)
+        assert match is not None
+        uid = match.group(1)
+        token = match.group(2)
+
+        # 2. Conferma reset con nuova password
+        response_confirm = api_client.post(
+            '/api/v1/auth/password-reset-confirm/',
+            {
+                'uid': uid,
+                'token': token,
+                'nuova_password': 'password-nuova-di-zecca-789',
+            },
+            HTTP_X_CSRFTOKEN=csrf,
+        )
+        assert response_confirm.status_code == 200
+
+        user.refresh_from_db()
+        assert user.check_password('password-nuova-di-zecca-789')
+
+    def test_reset_password_rifiuta_token_invalido(self, api_client):
+        csrf = _get_csrf_token(api_client)
+        response = api_client.post(
+            '/api/v1/auth/password-reset-confirm/',
+            {
+                'uid': 'invalid-uid',
+                'token': 'invalid-token',
+                'nuova_password': 'password-nuova-di-zecca-789',
+            },
+            HTTP_X_CSRFTOKEN=csrf,
+        )
+        assert response.status_code == 400
+
+
+class TestLoginRateLimitESecurityHeaders:
+    def test_security_headers_presenti(self, api_client):
+        response = api_client.get('/api/v1/auth/csrf/')
+        assert response.status_code == 200
+        assert 'Content-Security-Policy' in response
+        assert "default-src 'self'" in response['Content-Security-Policy']
+        assert response['X-Content-Type-Options'] == 'nosniff'
+        assert response['Referrer-Policy'] == 'strict-origin-when-cross-origin'
+        assert 'Permissions-Policy' in response
+
+    def test_rate_limit_sul_login(self, api_client, monkeypatch):
+        from django.core.cache import cache
+        from rest_framework.settings import api_settings
+
+        cache.clear()
+        rates = dict(api_settings.DEFAULT_THROTTLE_RATES)
+        rates['login'] = '2/min'
+        monkeypatch.setattr(api_settings, 'DEFAULT_THROTTLE_RATES', rates)
+
+        User.objects.create_user(email='test-throttle@example.com', password='password-sicura-123')
+        csrf = _get_csrf_token(api_client)
+
+        r1 = api_client.post(
+            '/api/v1/auth/login/',
+            {'email': 'test-throttle@example.com', 'password': 'errata'},
+            HTTP_X_CSRFTOKEN=csrf,
+        )
+        assert r1.status_code == 401
+
+        r2 = api_client.post(
+            '/api/v1/auth/login/',
+            {'email': 'test-throttle@example.com', 'password': 'errata'},
+            HTTP_X_CSRFTOKEN=csrf,
+        )
+        assert r2.status_code == 401
+
+        r3 = api_client.post(
+            '/api/v1/auth/login/',
+            {'email': 'test-throttle@example.com', 'password': 'errata'},
+            HTTP_X_CSRFTOKEN=csrf,
+        )
+        assert r3.status_code == 429
+        cache.clear()
+
+    def test_csrf_origin_consentito_da_frontend_vite(self, api_client):
+        user = User.objects.create_user(
+            email='csrf-origin@example.com', password='password-sicura-123'
+        )
+        api_client.post(
+            '/api/v1/auth/login/',
+            {'email': 'csrf-origin@example.com', 'password': 'password-sicura-123'},
+        )
+        csrf = _get_csrf_token(api_client)
+        response = api_client.patch(
+            '/api/v1/auth/me/',
+            {'nome': 'Nuovo Nome'},
+            HTTP_X_CSRFTOKEN=csrf,
+            HTTP_ORIGIN='http://localhost:5173',
+        )
+        assert response.status_code == 200
+
+    def test_csrf_origin_sconosciuto_rifiutato(self, api_client):
+        user = User.objects.create_user(
+            email='csrf-untrusted@example.com', password='password-sicura-123'
+        )
+        api_client.post(
+            '/api/v1/auth/login/',
+            {'email': 'csrf-untrusted@example.com', 'password': 'password-sicura-123'},
+        )
+        csrf = _get_csrf_token(api_client)
+        response = api_client.patch(
+            '/api/v1/auth/me/',
+            {'nome': 'Nuovo Nome'},
+            HTTP_X_CSRFTOKEN=csrf,
+            HTTP_ORIGIN='http://malicious-site.example.com',
+        )
+        assert response.status_code == 403
+        assert 'Controllo CSRF fallito' in response.data.get('detail', '')
+
+

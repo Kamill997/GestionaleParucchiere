@@ -59,3 +59,42 @@ export function useReportGuadagni() {
     enabled: eAmministratore,
   })
 }
+
+export interface AndamentoGiorno {
+  data: string
+  etichetta: string
+  totale: number
+  appuntamenti: number
+}
+
+export interface CategoriaFatturato {
+  categoria: string
+  totale: number
+  appuntamenti: number
+  percentuale: number
+}
+
+export interface OperatoreFatturato {
+  operatore: string
+  totale: number
+  appuntamenti: number
+}
+
+export interface AndamentoProfitti {
+  totale_periodo: number
+  media_giornaliera: number
+  giorni: AndamentoGiorno[]
+  categorie: CategoriaFatturato[]
+  operatori: OperatoreFatturato[]
+}
+
+export function useAndamentoProfitti(giorni: number = 30) {
+  const { data: user } = useCurrentUser()
+  const eAmministratore = !!user && user.ruoli.includes('Amministratore')
+
+  return useQuery({
+    queryKey: ['dashboard', 'andamento-profitti', giorni],
+    queryFn: () => apiFetch<AndamentoProfitti>(`/dashboard/andamento-profitti/?giorni=${giorni}`),
+    enabled: eAmministratore,
+  })
+}

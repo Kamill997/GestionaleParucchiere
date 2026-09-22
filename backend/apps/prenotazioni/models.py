@@ -46,6 +46,9 @@ class Prenotazione(UUIDModel):
     cliente = models.ForeignKey(Cliente, on_delete=models.PROTECT, related_name='prenotazioni')
     operatore = models.ForeignKey(Operatore, on_delete=models.PROTECT, related_name='prenotazioni')
     servizio = models.ForeignKey(Servizio, on_delete=models.PROTECT, related_name='prenotazioni')
+    servizi_aggiuntivi = models.ManyToManyField(
+        Servizio, blank=True, related_name='prenotazioni_secondarie'
+    )
     inizio = models.DateTimeField()
     fine = models.DateTimeField()
     stato = models.CharField(
@@ -102,3 +105,50 @@ class Prenotazione(UUIDModel):
         if self.importo is None:
             self.importo = self.servizio.prezzo
         super().save(*args, **kwargs)
+
+
+class StatoListaAttesa(models.TextChoices):
+    IN_ATTESA = 'in_attesa', 'In attesa'
+    NOTIFICATO = 'notificato', 'Notificato'
+    PRENOTATO = 'prenotato', 'Prenotato'
+    ANNULLATO = 'annullato', 'Annullato'
+
+
+class RichiestaListaAttesa(UUIDModel):
+    """Richieste di lista d'attesa per slot occupati.
+    Permette a un cliente di mettersi in lista per una determinata data e servizio
+    (ed eventualmente per un operatore o orario preferito).
+    Quando un appuntamento viene cancellato, il primo cliente in lista d'attesa
+    riceve una notifica automatica.
+    """
+
+    cliente = models.ForeignKey(
+        Cliente, on_delete=models.CASCADE, related_name='richieste_lista_attesa'
+    )
+    servizio = models.ForeignKey(
+        Servizio, on_delete=models.CASCADE, related_name='richieste_lista_attesa'
+    )
+    operatore = models.ForeignKey(
+        Operatore,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='richieste_lista_attesa',
+    )
+    data = models.DateField()
+    ora_preferita = models.TimeField(null=True, blank=True)
+    stato = models.CharField(
+        max_length=20, choices=StatoListaAttesa.choices, default=StatoListaAttesa.IN_ATTESA
+    )
+    note = models.CharField(max_length=255, blank=True)
+    notificato_il = models.DateTimeField(null=True, blank=True)
+    creato_il = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ['creato_il']
+        verbose_name = "Richiesta lista d'attesa"
+        verbose_name_plural = "Richieste lista d'attesa"
+
+    def __str__(self):
+        return f"{self.cliente} in lista d'attesa per {self.servizio} il {self.data} ({self.stato})"
+

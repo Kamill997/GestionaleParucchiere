@@ -1,5 +1,6 @@
 from django_filters.rest_framework import DjangoFilterBackend
 from rest_framework import filters, viewsets
+from rest_framework.parsers import FormParser, JSONParser, MultiPartParser
 
 from common.permissions import read_only_or_roles_required
 
@@ -13,6 +14,7 @@ class ServizioViewSet(viewsets.ModelViewSet):
 
     queryset = Servizio.objects.all()
     serializer_class = ServizioSerializer
+    parser_classes = [MultiPartParser, FormParser, JSONParser]
     permission_classes = [read_only_or_roles_required('Amministratore')]
     filter_backends = [DjangoFilterBackend, filters.SearchFilter, filters.OrderingFilter]
     filterset_fields = ['categoria', 'attivo']

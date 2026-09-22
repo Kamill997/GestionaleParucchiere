@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import type { ColumnDef } from '@tanstack/react-table'
-import { Check, UserX, X } from 'lucide-react'
+import { Bell, CalendarDays, Check, List, UserX, X } from 'lucide-react'
 
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
@@ -9,6 +9,9 @@ import { DataTable } from '@/components/data-table/data-table'
 import { PageHeader } from '@/components/ui/page-header'
 import { Select } from '@/components/ui/select'
 import { useToast } from '@/components/ui/toast'
+
+import { CalendarioOperatori } from './CalendarioOperatori'
+import { ListaAttesaTable } from './ListaAttesaTable'
 
 import {
   useAggiornaPagamento,
@@ -44,6 +47,7 @@ export function GestionePrenotazioniPage() {
   const [pagina, setPagina] = useState(1)
   const [filtroStato, setFiltroStato] = useState('')
   const [daCancellare, setDaCancellare] = useState<Prenotazione | null>(null)
+  const [vista, setVista] = useState<'tabella' | 'calendario' | 'lista_attesa'>('calendario')
 
   const { data, isLoading } = useTuttePrenotazioni(pagina, filtroStato || undefined)
   const segnaPresenzaMutation = useSegnaPresenza()
@@ -68,7 +72,7 @@ export function GestionePrenotazioniPage() {
         id: prenotazione.id,
         stato_presenza: presente ? 'presente' : 'non_presente',
       })
-      if (!presente) showToast('Segnato come non presentato.')
+      showToast(presente ? 'Presenza confermata!' : 'Segnato come non presentato.')
     } catch {
       showToast('Errore segnando la presenza.', 'error')
     }
@@ -94,7 +98,23 @@ export function GestionePrenotazioniPage() {
     },
     { accessorKey: 'cliente_nome', header: 'Cliente' },
     { accessorKey: 'operatore_nome', header: 'Operatore' },
-    { accessorKey: 'servizio_nome', header: 'Servizio' },
+    {
+      id: 'servizio',
+      header: 'Servizio / Trattamenti',
+      cell: ({ row }) => {
+        const extra = row.original.servizi_aggiuntivi_dettaglio
+        return (
+          <div>
+            <span className="font-medium text-ink">{row.original.servizio_nome}</span>
+            {extra && extra.length > 0 && (
+              <p className="text-xs text-primary font-medium">
+                + {extra.map((e) => e.nome).join(', ')}
+              </p>
+            )}
+          </div>
+        )
+      },
+    },
     {
       accessorKey: 'stato',
       header: 'Stato',
@@ -131,7 +151,10 @@ export function GestionePrenotazioniPage() {
               variant="ghost"
               size="icon"
               aria-label="Segna presente"
+              title="Segna presente"
+              disabled={row.original.stato_presenza === 'presente'}
               onClick={() => marcaPresenza(row.original, true)}
+              className="disabled:opacity-30"
             >
               <Check className="h-4 w-4 text-success" />
             </Button>
@@ -139,7 +162,10 @@ export function GestionePrenotazioniPage() {
               variant="ghost"
               size="icon"
               aria-label="Segna non presente"
+              title="Segna non presente"
+              disabled={row.original.stato_presenza === 'non_presente'}
               onClick={() => marcaPresenza(row.original, false)}
+              className="disabled:opacity-30"
             >
               <UserX className="h-4 w-4 text-danger" />
             </Button>
@@ -167,32 +193,81 @@ export function GestionePrenotazioniPage() {
     <div>
       <PageHeader
         title="Gestione prenotazioni"
-        description="Tutti gli appuntamenti: pagamento, presenza, cancellazione."
+        description="Tutti gli appuntamenti: vista calendario orario o tabella gestionale."
         actions={
-          <Select
-            value={filtroStato}
-            onChange={(e) => setFiltroStato(e.target.value)}
-            className="w-40"
-          >
-            <option value="">Tutti gli stati</option>
-            <option value="confermata">Confermata</option>
-            <option value="cancellata">Cancellata</option>
-            <option value="completata">Completata</option>
-          </Select>
+          <div className="flex flex-wrap items-center gap-3">
+            {vista === 'tabella' && (
+              <Select
+                value={filtroStato}
+                onChange={(e) => setFiltroStato(e.target.value)}
+                className="w-40"
+              >
+                <option value="">Tutti gli stati</option>
+                <option value="confermata">Confermata</option>
+                <option value="cancellata">Cancellata</option>
+                <option value="completata">Completata</option>
+              </Select>
+            )}
+
+            <div className="flex rounded-md border border-border bg-surface-hover/50 p-0.5">
+              <button
+                type="button"
+                onClick={() => setVista('calendario')}
+                className={`flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded transition-all ${
+                  vista === 'calendario'
+                    ? 'bg-surface text-primary shadow-xs font-semibold'
+                    : 'text-ink-muted hover:text-ink'
+                }`}
+              >
+                <CalendarDays className="h-3.5 w-3.5" />
+                <span>Calendario</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => setVista('tabella')}
+                className={`flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded transition-all ${
+                  vista === 'tabella'
+                    ? 'bg-surface text-primary shadow-xs font-semibold'
+                    : 'text-ink-muted hover:text-ink'
+                }`}
+              >
+                <List className="h-3.5 w-3.5" />
+                <span>Tabella</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => setVista('lista_attesa')}
+                className={`flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded transition-all ${
+                  vista === 'lista_attesa'
+                    ? 'bg-surface text-primary shadow-xs font-semibold'
+                    : 'text-ink-muted hover:text-ink'
+                }`}
+              >
+                <Bell className="h-3.5 w-3.5" />
+                <span>Lista d'attesa</span>
+              </button>
+            </div>
+          </div>
         }
       />
 
-      <DataTable
-        columns={columns}
-        data={data?.results ?? []}
-        isLoading={isLoading}
-        emptyTitle="Nessuna prenotazione"
-        pagination={
-          data
-            ? { page: pagina, totalCount: data.count, pageSize: 25, onPageChange: setPagina }
-            : undefined
-        }
-      />
+      {vista === 'calendario' ? (
+        <CalendarioOperatori />
+      ) : vista === 'tabella' ? (
+        <DataTable
+          columns={columns}
+          data={data?.results ?? []}
+          isLoading={isLoading}
+          emptyTitle="Nessuna prenotazione"
+          pagination={
+            data
+              ? { page: pagina, totalCount: data.count, pageSize: 25, onPageChange: setPagina }
+              : undefined
+          }
+        />
+      ) : (
+        <ListaAttesaTable isStaff={true} />
+      )}
 
       <ConfirmDialog
         open={!!daCancellare}

@@ -1,8 +1,11 @@
+import { useState } from 'react'
 import { AlertTriangle } from 'lucide-react'
 
 import { Badge } from '@/components/ui/badge'
 
-import { useReportGuadagni, type GuadagnoRiga } from './hooks'
+import { AndamentoProfittiChart } from './AndamentoProfittiChart'
+import { RipartizioneCategoriaChart } from './RipartizioneCategoriaChart'
+import { useAndamentoProfitti, useReportGuadagni, type GuadagnoRiga } from './hooks'
 
 function ListaGuadagni({ righe, vuoto }: { righe: GuadagnoRiga[]; vuoto: string }) {
   if (righe.length === 0) {
@@ -21,22 +24,54 @@ function ListaGuadagni({ righe, vuoto }: { righe: GuadagnoRiga[]; vuoto: string 
 }
 
 /**
- * docs/08-pagamenti.md, "Dashboard guadagni (lato Amministratore)": ultimo
- * pezzo del checklist del modulo pagamenti (guadagni per cliente/servizio/
- * operatore + elenco clienti vicini alla soglia di blocco). Il totale
- * aggregato (fatturato_settimana) resta nelle KpiCard sopra, invariato:
- * questa e' solo la vista di dettaglio, riservata ad Amministratore.
+ * docs/08-pagamenti.md, "Dashboard guadagni (lato Amministratore)":
+ * Grafici di andamento temporale del profitto (Line Chart), ripartizione per categoria
+ * di servizio (Donut Chart) e riepilogo dettagliato delle performance.
  */
 export function GuadagniSection() {
-  const { data: report, isLoading } = useReportGuadagni()
+  const [giorni, setGiorni] = useState(30)
+  const { data: report, isLoading: isLoadingReport } = useReportGuadagni()
+  const { data: andamento, isLoading: isLoadingAndamento } = useAndamentoProfitti(giorni)
 
-  if (isLoading) return <p className="text-sm text-ink-muted">Caricamento guadagni…</p>
-  if (!report) return null
+  if (isLoadingReport && isLoadingAndamento) {
+    return <p className="text-sm text-ink-muted">Caricamento analitiche e guadagni…</p>
+  }
 
   return (
-    <div className="mt-8">
-      <h2 className="font-display text-lg font-semibold text-ink">Guadagni</h2>
-      <div className="mt-3 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+    <div className="mt-8 space-y-6">
+      <div>
+        <h2 className="font-display text-lg font-semibold text-ink">Analitiche & Guadagni</h2>
+        <p className="text-sm text-ink-muted">
+          Panoramica economica e andamento delle vendite riservata alla direzione del salone.
+        </p>
+      </div>
+
+      {andamento && (
+        <div className="grid gap-6 lg:grid-cols-3">
+          <div className="lg:col-span-2">
+            <AndamentoProfittiChart
+              giorni={andamento.giorni}
+              totalePeriodo={andamento.totale_periodo}
+              mediaGiornaliera={andamento.media_giornaliera}
+              giorniSelezionati={giorni}
+              onCambiaGiorni={setGiorni}
+            />
+          </div>
+          <div>
+            <RipartizioneCategoriaChart
+              categorie={andamento.categorie}
+              totalePeriodo={andamento.totale_periodo}
+            />
+          </div>
+        </div>
+      )}
+
+      {report && (
+        <div>
+          <h3 className="mb-3 text-xs font-semibold uppercase tracking-wider text-ink-muted">
+            Riepilogo Dettagliato
+          </h3>
+          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <div className="rounded-lg border border-border bg-surface p-4">
           <p className="mb-2 text-xs font-medium uppercase tracking-wide text-ink-muted">
             Per servizio (7 giorni)
@@ -86,5 +121,7 @@ export function GuadagniSection() {
         </div>
       </div>
     </div>
+    )}
+  </div>
   )
 }

@@ -54,6 +54,7 @@ class User(AbstractUser):
     email = models.EmailField('indirizzo email', unique=True)
     stato = models.CharField(max_length=20, choices=StatoUtente.choices, default=StatoUtente.ATTIVO)
     roles = models.ManyToManyField('roles.Role', related_name='users', blank=True)
+    tokens_revoked_at = models.DateTimeField(null=True, blank=True)
 
     USERNAME_FIELD = 'email'
     REQUIRED_FIELDS = []
@@ -67,3 +68,62 @@ class User(AbstractUser):
 
     def __str__(self):
         return self.email
+
+
+def analizza_user_agent(ua_string: str) -> str:
+    if not ua_string:
+        return 'Dispositivo sconosciuto'
+    ua = ua_string.lower()
+
+    browser = 'Browser sconosciuto'
+    if 'edg/' in ua:
+        browser = 'Edge'
+    elif 'chrome' in ua and 'safari' in ua and 'opr' not in ua:
+        browser = 'Chrome'
+    elif 'firefox' in ua:
+        browser = 'Firefox'
+    elif 'safari' in ua and 'chrome' not in ua:
+        browser = 'Safari'
+    elif 'opera' in ua or 'opr' in ua:
+        browser = 'Opera'
+
+    so = ''
+    if 'windows' in ua:
+        so = 'Windows'
+    elif 'macintosh' in ua or 'mac os' in ua:
+        so = 'macOS'
+    elif 'iphone' in ua:
+        so = 'iPhone'
+    elif 'ipad' in ua:
+        so = 'iPad'
+    elif 'android' in ua:
+        so = 'Android'
+    elif 'linux' in ua:
+        so = 'Linux'
+
+    if browser and so:
+        return f'{browser} su {so}'
+    return browser or so or 'Dispositivo sconosciuto'
+
+
+class UserSession(models.Model):
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='sessioni')
+    refresh_jti = models.CharField(max_length=255, db_index=True)
+    ip_address = models.GenericIPAddressField(null=True, blank=True)
+    user_agent = models.CharField(max_length=512, blank=True)
+    dispositivo = models.CharField(max_length=150, blank=True)
+    creato_il = models.DateTimeField(auto_now_add=True)
+    ultimo_accesso = models.DateTimeField(auto_now=True)
+    revocata = models.BooleanField(default=False)
+    revocata_il = models.DateTimeField(null=True, blank=True)
+
+    class Meta:
+        ordering = ['-ultimo_accesso']
+        verbose_name = 'Sessione utente'
+        verbose_name_plural = 'Sessioni utente'
+
+    def __str__(self):
+        stato = 'revocata' if self.revocata else 'attiva'
+        return f"Sessione {self.dispositivo or 'sconosciuto'} per {self.user.email} ({stato})"
+

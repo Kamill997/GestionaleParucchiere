@@ -1,4 +1,5 @@
 import { LogOut } from 'lucide-react'
+import { Link } from 'react-router-dom'
 
 import { Button } from '@/components/ui/button'
 import { InstallButton } from '@/components/pwa/InstallButton'
@@ -16,12 +17,16 @@ export function Header() {
         <div className="flex items-center gap-4">
           <InstallButton />
           <NotificationBell />
-          <div className="text-right leading-tight">
+          <Link
+            to="/profilo"
+            className="text-right leading-tight transition-colors hover:text-primary"
+            title="Visualizza il tuo profilo"
+          >
             <p className="text-sm font-medium text-ink">
               {[user.nome, user.cognome].filter(Boolean).join(' ') || user.email}
             </p>
             <p className="text-xs text-ink-muted">{user.ruoli.join(', ') || 'Nessun ruolo'}</p>
-          </div>
+          </Link>
           <Button
             variant="ghost"
             size="icon"

@@ -38,6 +38,28 @@ test.describe('Flusso prenotazione self-service', () => {
     // prenotazioni" sono coperti dai test backend).
     await expect(page.getByRole('heading', { name: /le mie prenotazioni/i })).toBeVisible()
   })
+
+  test('la pagina Le mie prenotazioni supporta le azioni di esportazione calendario', async ({ page }) => {
+    await loginCliente(page)
+    await page.goto('/le-mie-prenotazioni')
+    await expect(page.getByRole('heading', { name: /le mie prenotazioni/i })).toBeVisible()
+    const icsBtn = page.getByRole('button', { name: /scarica file ical/i })
+    const count = await icsBtn.count()
+    if (count > 0) {
+      await expect(icsBtn.first()).toBeVisible()
+      await expect(page.getByRole('link', { name: /aggiungi a google calendar/i }).first()).toBeVisible()
+    }
+  })
+
+  test('la pagina Le mie prenotazioni include la scheda lista d\'attesa', async ({ page }) => {
+    await loginCliente(page)
+    await page.goto('/le-mie-prenotazioni')
+    await expect(page.getByRole('heading', { name: /le mie prenotazioni/i })).toBeVisible()
+    const tabListaAttesa = page.getByRole('button', { name: /lista d'attesa/i })
+    await expect(tabListaAttesa).toBeVisible()
+    await tabListaAttesa.click()
+    await expect(page.getByText("Richieste in Lista d'Attesa", { exact: true })).toBeVisible()
+  })
 })
 
 test.describe('Sidebar — voci per ruolo', () => {

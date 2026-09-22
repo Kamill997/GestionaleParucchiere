@@ -19,10 +19,16 @@ services:
   redis:
     image: redis:7-alpine
     restart: unless-stopped
+    command: redis-server --requirepass ${REDIS_PASSWORD:-gestionaleredispass123}
     ports:
       - "6379:6379"
     volumes:
       - redis_data:/data
+    healthcheck:
+      test: ["CMD-SHELL", "redis-cli -a ${REDIS_PASSWORD:-gestionaleredispass123} ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
 
   adminer:
     image: adminer
@@ -41,21 +47,22 @@ services:
       postgres:
         condition: service_healthy
       redis:
-        condition: service_started
+        condition: service_healthy
     environment:
       DATABASE_URL: postgresql://gestionale:gestionale@postgres:5432/gestionale
-      REDIS_URL: redis://redis:6379
+      REDIS_URL: redis://:${REDIS_PASSWORD:-gestionaleredispass123}@redis:6379/0
       DJANGO_SECRET_KEY: ${DJANGO_SECRET_KEY}
       DJANGO_DEBUG: "True"
       DJANGO_ALLOWED_HOSTS: "localhost,127.0.0.1"
-      DJANGO_CORS_ALLOWED_ORIGINS: "http://localhost:5173"
+      DJANGO_CORS_ALLOWED_ORIGINS: "http://localhost:5173,http://127.0.0.1:5173"
+      DJANGO_CSRF_TRUSTED_ORIGINS: "http://localhost:5173,http://127.0.0.1:5173"
     ports:
       - "8000:8000"
     volumes:
       - ./backend:/app
     command: python manage.py runserver 0.0.0.0:8000
     healthcheck:
-      test: ["CMD-SHELL", "curl -sf http://localhost:8000/health/ || exit 1"]
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/health/').read()"]
       interval: 30s
       timeout: 10s
       retries: 3
@@ -71,7 +78,7 @@ services:
       - redis
     environment:
       DATABASE_URL: postgresql://gestionale:gestionale@postgres:5432/gestionale
-      REDIS_URL: redis://redis:6379
+      REDIS_URL: redis://:${REDIS_PASSWORD:-gestionaleredispass123}@redis:6379/0
       DJANGO_SECRET_KEY: ${DJANGO_SECRET_KEY}
     volumes:
       - ./backend:/app
@@ -87,7 +94,7 @@ services:
       - redis
     environment:
       DATABASE_URL: postgresql://gestionale:gestionale@postgres:5432/gestionale
-      REDIS_URL: redis://redis:6379
+      REDIS_URL: redis://:${REDIS_PASSWORD:-gestionaleredispass123}@redis:6379/0
       DJANGO_SECRET_KEY: ${DJANGO_SECRET_KEY}
     volumes:
       - ./backend:/app

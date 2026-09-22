@@ -91,3 +91,35 @@ export function creaClientRisorsa<T, TInput = Partial<T>>(percorsoBase: string) 
     elimina: (id: string) => apiFetch<void>(`${percorsoBase}${id}/`, { method: 'DELETE' }),
   }
 }
+
+/**
+ * Estrae un messaggio leggibile dal corpo di un ApiError DRF.
+ *
+ * DRF restituisce errori in forme variabili:
+ * - `{ detail: "..." }` (errore generico)
+ * - `{ non_field_errors: ["..."] }` (validazione cross-campo)
+ * - `{ campo: ["..."] }` (validazione per campo, es. `cliente`, `inizio`)
+ *
+ * Questa funzione li normalizza in un'unica stringa leggibile, evitando
+ * di mascherare i messaggi reali del backend con fallback generici.
+ */
+export function formattaErroreApi(error: unknown, fallback = 'Errore imprevisto, riprova.'): string {
+  if (!(error instanceof ApiError)) return fallback
+
+  const body = error.body as Record<string, unknown> | null | undefined
+  if (!body || typeof body !== 'object') return fallback
+
+  // Caso 1: { detail: "..." }
+  if (typeof body.detail === 'string') return body.detail
+
+  // Caso 2: { non_field_errors: ["..."] }
+  if (Array.isArray(body.non_field_errors)) return body.non_field_errors.join(' ')
+
+  // Caso 3: { campo: ["..."], altro_campo: "..." } — unisci tutti i messaggi
+  const messaggi: string[] = []
+  for (const [, valore] of Object.entries(body)) {
+    if (Array.isArray(valore)) messaggi.push(...valore.map(String))
+    else if (typeof valore === 'string') messaggi.push(valore)
+  }
+  return messaggi.length > 0 ? messaggi.join(' ') : fallback
+}

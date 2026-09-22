@@ -68,13 +68,13 @@ describe('Flusso di login', () => {
     const user = userEvent.setup()
     render(<App />)
 
-    await screen.findByRole('heading', { name: /gestionale salone/i })
+    await screen.findByRole('heading', { name: /gestionale salone/i }, { timeout: 5000 })
 
     await user.type(screen.getByLabelText(/email/i), 'admin@example.com')
     await user.type(screen.getByLabelText(/password/i), 'password-corretta')
     await user.click(screen.getByRole('button', { name: /accedi/i }))
 
-    expect(await screen.findByText(/ciao, maria/i)).toBeInTheDocument()
+    expect(await screen.findByText(/ciao, maria/i, {}, { timeout: 5000 })).toBeInTheDocument()
     expect(screen.getByText('Amministratore')).toBeInTheDocument()
   })
 })

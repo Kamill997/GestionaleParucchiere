@@ -1,11 +1,27 @@
 import { apiFetch, creaClientRisorsa } from '@/lib/api'
 
-import type { Prenotazione, PrenotazioneInput, SlotDisponibile, StatoPresenza } from './types'
+import type {
+  Prenotazione,
+  PrenotazioneInput,
+  RichiestaListaAttesa,
+  RichiestaListaAttesaInput,
+  SlotDisponibile,
+  StatoPresenza,
+} from './types'
 
 export const prenotazioneApi = creaClientRisorsa<Prenotazione, PrenotazioneInput>('/prenotazioni/')
+export const listaAttesaApi = creaClientRisorsa<RichiestaListaAttesa, RichiestaListaAttesaInput>('/lista-attesa/')
 
-export function fetchSlotDisponibili(operatore: string, servizio: string, data: string) {
+export function fetchSlotDisponibili(
+  operatore: string,
+  servizio: string,
+  data: string,
+  serviziAggiuntivi?: string[]
+) {
   const params = new URLSearchParams({ operatore, servizio, data })
+  if (serviziAggiuntivi && serviziAggiuntivi.length > 0) {
+    params.set('servizi_aggiuntivi', serviziAggiuntivi.join(','))
+  }
   return apiFetch<SlotDisponibile[]>(`/slot-disponibili/?${params.toString()}`)
 }
 
@@ -18,4 +34,8 @@ export function segnaPresenza(id: string, stato_presenza: StatoPresenza) {
     method: 'POST',
     body: JSON.stringify({ stato_presenza }),
   })
+}
+
+export function annullaRichiestaListaAttesa(id: string) {
+  return apiFetch<RichiestaListaAttesa>(`/lista-attesa/${id}/annulla/`, { method: 'POST' })
 }

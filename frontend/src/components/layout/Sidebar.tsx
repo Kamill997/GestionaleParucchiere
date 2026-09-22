@@ -6,6 +6,7 @@ import {
   ListChecks,
   Scissors,
   Settings,
+  UserCircle,
   UserCog,
   UserRound,
   Users,
@@ -28,8 +29,13 @@ interface NavItem {
 const NAV_ITEMS: NavItem[] = [
   { to: '/', label: 'Dashboard', icon: LayoutDashboard },
   { to: '/servizi', label: 'Servizi', icon: Scissors },
-  { to: '/prenota', label: 'Prenota', icon: CalendarPlus },
-  { to: '/le-mie-prenotazioni', label: 'Le mie prenotazioni', icon: ListChecks },
+  { to: '/prenota', label: 'Prenota', icon: CalendarPlus, roles: ['Cliente'] },
+  {
+    to: '/le-mie-prenotazioni',
+    label: 'Le mie prenotazioni',
+    icon: ListChecks,
+    roles: ['Cliente'],
+  },
   {
     to: '/gestione-prenotazioni',
     label: 'Gestione prenotazioni',
@@ -40,6 +46,7 @@ const NAV_ITEMS: NavItem[] = [
   { to: '/clienti', label: 'Clienti', icon: UserRound, roles: ['Amministratore', 'Operatore'] },
   { to: '/utenti', label: 'Utenti e ruoli', icon: UserCog, roles: ['Amministratore'] },
   { to: '/impostazioni', label: 'Impostazioni', icon: Settings, roles: ['Amministratore'] },
+  { to: '/profilo', label: 'Il mio Profilo', icon: UserCircle },
 ]
 
 export function Sidebar() {

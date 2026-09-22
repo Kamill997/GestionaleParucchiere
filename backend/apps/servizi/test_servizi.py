@@ -95,3 +95,53 @@ class TestScritturaCatalogo:
         assert response.status_code == 400
         assert 'detail' in response.data
         assert Servizio.objects.filter(id=servizio.id).exists()  # non eliminato
+
+
+class TestValidazioneUploadFoto:
+    def test_upload_foto_valida_accettata(self, api_client, admin_utente):
+        import io
+        from PIL import Image
+        from django.core.files.uploadedfile import SimpleUploadedFile
+
+        buf = io.BytesIO()
+        Image.new('RGB', (64, 64), color='blue').save(buf, format='PNG')
+        foto_valida = SimpleUploadedFile('taglio.png', buf.getvalue(), content_type='image/png')
+
+        response = api_client.post(
+            '/api/v1/servizi/',
+            {
+                'nome': 'Taglio con Foto',
+                'categoria': 'Taglio',
+                'durata_minuti': 40,
+                'prezzo': '25.00',
+                'foto': foto_valida,
+            },
+            format='multipart',
+            HTTP_X_CSRFTOKEN=admin_utente.csrf_token,
+        )
+        assert response.status_code == 201
+        servizio = Servizio.objects.get(nome='Taglio con Foto')
+        assert bool(servizio.foto)
+
+    def test_upload_foto_fake_rifiutata(self, api_client, admin_utente):
+        from django.core.files.uploadedfile import SimpleUploadedFile
+
+        fake_foto = SimpleUploadedFile(
+            'fake.jpg', b'Not an image at all but plaintext code', content_type='image/jpeg'
+        )
+
+        response = api_client.post(
+            '/api/v1/servizi/',
+            {
+                'nome': 'Servizio Fake',
+                'categoria': 'Taglio',
+                'durata_minuti': 30,
+                'prezzo': '20.00',
+                'foto': fake_foto,
+            },
+            format='multipart',
+            HTTP_X_CSRFTOKEN=admin_utente.csrf_token,
+        )
+        assert response.status_code == 400
+        assert 'foto' in response.data or 'detail' in response.data
+
